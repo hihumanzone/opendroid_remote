@@ -267,6 +267,20 @@ Deploy the contents of `dist-static/` as the web root. The output uses relative
 asset URLs, so it works at a domain root or a repository subpath. Do not remove
 `dist-static/vendor/scrcpy-server-v3.3.3`.
 
+### Vercel
+
+OpenDroid Remote is natively compatible with Vercel zero-configuration deployments.
+
+1. Connect your repository to Vercel.
+2. Vercel automatically detects Next.js framework configuration (`vercel.json`) and runs `npm run build`.
+3. The build script auto-detects the Vercel deployment environment and compiles the Next.js production build.
+
+Alternatively, build manually for Next.js / Vercel targets:
+
+```sh
+npm run build:next
+```
+
 ### GitHub Pages
 
 The included `.github/workflows/pages.yml` tests, builds, and publishes

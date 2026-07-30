@@ -8,8 +8,12 @@
   "scripts": {
     "install:ci": "bash scripts/install-ci.sh",
     "dev": "node scripts/dev.mjs",
+    "dev:next": "next dev",
     "build": "node scripts/build.mjs",
+    "build:next": "next build",
+    "build:vercel": "next build",
     "start": "node scripts/start.mjs",
+    "start:next": "next start",
     "test": "vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
     "typecheck": "tsc --noEmit",
