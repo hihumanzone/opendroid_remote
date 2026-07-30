@@ -1028,12 +1028,16 @@ a:hover {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
 }
 
 .field span {
   font-size: 12px;
   font-weight: 650;
   color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .field input,
@@ -1046,6 +1050,8 @@ a:hover {
   font-size: 13px;
   color: var(--ink);
   transition: border-color 150ms ease;
+  width: 100%;
+  min-width: 0;
 }
 
 .field input:focus,
@@ -1058,16 +1064,20 @@ a:hover {
 .field-grid {
   display: grid;
   gap: var(--space-3);
+  min-width: 0;
+  width: 100%;
 }
 
 .field-grid.two {
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .range-field {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
+  width: 100%;
 }
 
 .range-field span {
@@ -1076,6 +1086,7 @@ a:hover {
   align-items: center;
   font-size: 12px;
   font-weight: 650;
+  min-width: 0;
 }
 
 .range-field output {
@@ -1086,6 +1097,7 @@ a:hover {
   border: 1px solid var(--accent-border);
   padding: 1px 6px;
   border-radius: var(--radius-sm);
+  flex-shrink: 0;
 }
 
 .switch {
@@ -1095,6 +1107,7 @@ a:hover {
   cursor: pointer;
   font-size: 12px;
   user-select: none;
+  min-width: 0;
 }
 
 .switch input[type="checkbox"] {
@@ -1102,16 +1115,19 @@ a:hover {
   height: 16px;
   width: 16px;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 /* Custom Select Dropdown Component */
 .custom-select-container {
   position: relative;
   width: 100%;
+  min-width: 0;
 }
 
 .custom-select-trigger {
   width: 100%;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1126,6 +1142,7 @@ a:hover {
   transition: all 150ms ease;
   min-height: 38px;
   cursor: pointer;
+  overflow: hidden;
 }
 
 .custom-select-trigger:hover:not(:disabled) {
@@ -1244,6 +1261,7 @@ a:hover {
   width: 100%;
   padding: 4px 0;
   touch-action: none;
+  min-width: 0;
 }
 
 .custom-slider-root.is-disabled {
@@ -1254,20 +1272,23 @@ a:hover {
 .custom-slider-track-area {
   position: relative;
   height: 22px;
-  display: flex;
-  align-items: center;
+  width: 100%;
   cursor: pointer;
   outline: none;
 }
 
 .custom-slider-track {
-  position: relative;
-  width: 100%;
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
   height: 6px;
   background: var(--surface-3);
   border-radius: var(--radius-full);
   overflow: hidden;
   border: 1px solid var(--line-subtle);
+  pointer-events: none;
 }
 
 .custom-slider-fill {
@@ -1290,6 +1311,7 @@ a:hover {
   border-radius: 50%;
   box-shadow: var(--shadow-sm);
   transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
+  pointer-events: none;
 }
 
 .custom-slider-track-area:hover .custom-slider-thumb,
