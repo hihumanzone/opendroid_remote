@@ -311,3 +311,11 @@ export function IconMappingType({ type, size = 18, className }: { type: string; 
       return <IconGamepad size={size} className={className} />;
   }
 }
+
+export function IconChevronDown({ size = 18, ...props }: IconProps) {
+  return (
+    <svg {...defaultProps} width={size} height={size} {...props}>
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}

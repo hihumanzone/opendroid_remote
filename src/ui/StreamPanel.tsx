@@ -15,6 +15,8 @@ import type {
   AudioPlaybackSnapshot,
 } from "../scrcpy/ScrcpySession";
 import { IconRefresh } from "./icons/UiIcons";
+import { CustomSelect } from "./controls/CustomSelect";
+import { CustomSlider } from "./controls/CustomSlider";
 
 export interface StreamPanelProps {
   quality: StreamQuality;
@@ -146,67 +148,66 @@ export function StreamPanel({
 
         <label className="field">
           <span>Performance preset</span>
-          <select
-            defaultValue=""
-            onChange={(event) => {
-              if (!event.target.value) return;
+          <CustomSelect
+            value=""
+            placeholder="Choose without replacing custom values…"
+            onChange={(val) => {
+              if (!val) return;
               onChange(
                 applyPerformancePreset(
                   quality,
-                  event.target.value as "latency" | "balanced" | "quality",
+                  val as "latency" | "balanced" | "quality",
                 ),
               );
-              event.currentTarget.value = "";
             }}
-          >
-            <option value="">Choose without replacing custom values…</option>
-            <option value="latency">Low latency · 1280 / 4 Mbps</option>
-            <option value="balanced">Balanced · 1920 / 8 Mbps</option>
-            <option value="quality">High quality · native / 20 Mbps</option>
-          </select>
+            options={[
+              { value: "", label: "Choose without replacing custom values…" },
+              { value: "latency", label: "Low latency · 1280 / 4 Mbps" },
+              { value: "balanced", label: "Balanced · 1920 / 8 Mbps" },
+              { value: "quality", label: "High quality · native / 20 Mbps" },
+            ]}
+          />
         </label>
 
         <label className="field">
           <span>Source display</span>
-          <select
+          <CustomSelect
             value={quality.displayId ?? ""}
-            onChange={(event) =>
+            onChange={(val) =>
               onChange({
                 ...quality,
                 displayId:
-                  event.target.value === ""
+                  val === "" || val === undefined
                     ? undefined
-                    : Number(event.target.value),
+                    : Number(val),
               })
             }
-          >
-            <option value="">Auto · focused / server default</option>
-            {(capabilities?.displays ?? []).map((display) => (
-              <option key={display.id} value={display.id}>
-                Display {display.id}
-                {display.resolution ? ` · ${display.resolution}` : ""}
-                {display.focused ? " · focused" : ""}
-              </option>
-            ))}
-          </select>
+            options={[
+              { value: "", label: "Auto · focused / server default" },
+              ...(capabilities?.displays ?? []).map((display) => ({
+                value: display.id,
+                label: `Display ${display.id}${display.resolution ? ` · ${display.resolution}` : ""}${display.focused ? " · focused" : ""}`,
+              })),
+            ]}
+          />
         </label>
 
         <label className="field">
           <span>Resolution / maximum dimension</span>
-          <select
+          <CustomSelect
             value={presetValue}
-            onChange={(event) => {
-              if (event.target.value === "custom") return;
-              onChange({ ...quality, maxSize: Number(event.target.value) });
+            onChange={(val) => {
+              if (val === "custom") return;
+              onChange({ ...quality, maxSize: Number(val) });
             }}
-          >
-            {RESOLUTION_PRESETS.map((preset) => (
-              <option key={preset.value} value={preset.value}>
-                {preset.label}
-              </option>
-            ))}
-            <option value="custom">Custom · {quality.maxSize} px</option>
-          </select>
+            options={[
+              ...RESOLUTION_PRESETS.map((preset) => ({
+                value: String(preset.value),
+                label: preset.label,
+              })),
+              { value: "custom", label: `Custom · ${quality.maxSize} px` },
+            ]}
+          />
         </label>
         <label className="field">
           <span>Custom maximum dimension (0 = native)</span>
@@ -225,68 +226,71 @@ export function StreamPanel({
         <div className="field-grid two">
           <label className="field">
             <span>Video codec</span>
-            <select
+            <CustomSelect
               value={quality.codec}
-              onChange={(event) =>
+              onChange={(val) =>
                 onChange({
                   ...quality,
-                  codec: event.target.value as "auto" | VideoCodec,
+                  codec: val as "auto" | VideoCodec,
                   encoder: undefined,
                 })
               }
-            >
-              <option value="auto">Auto · reliability first</option>
-              <option value="h264" disabled={!capabilities?.browserCodecs.h264}>
-                H.264
-              </option>
-              <option value="h265" disabled={!capabilities?.browserCodecs.h265}>
-                H.265
-              </option>
-              <option value="av1" disabled={!capabilities?.browserCodecs.av1}>
-                AV1
-              </option>
-            </select>
+              options={[
+                { value: "auto", label: "Auto · reliability first" },
+                {
+                  value: "h264",
+                  label: "H.264",
+                  disabled: !capabilities?.browserCodecs.h264,
+                },
+                {
+                  value: "h265",
+                  label: "H.265",
+                  disabled: !capabilities?.browserCodecs.h265,
+                },
+                {
+                  value: "av1",
+                  label: "AV1",
+                  disabled: !capabilities?.browserCodecs.av1,
+                },
+              ]}
+            />
           </label>
           <label className="field">
             <span>Android encoder</span>
-            <select
+            <CustomSelect
               value={quality.encoder ?? ""}
-              onChange={(event) =>
+              onChange={(val) =>
                 onChange({
                   ...quality,
-                  encoder: event.target.value || undefined,
+                  encoder: val ? String(val) : undefined,
                 })
               }
-            >
-              <option value="">Negotiated default</option>
-              {availableEncoders.map((encoder) => (
-                <option
-                  key={`${encoder.codec}:${encoder.name}`}
-                  value={encoder.name}
-                >
-                  {encoder.name} · {encoder.hardwareType ?? "unknown"}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: "", label: "Negotiated default" },
+                ...availableEncoders.map((encoder) => ({
+                  value: encoder.name,
+                  label: `${encoder.name} · ${encoder.hardwareType ?? "unknown"}`,
+                })),
+              ]}
+            />
           </label>
         </div>
 
-        <label className="range-field">
+        <div className="range-field">
           <span>
             Video bitrate{" "}
             <output>{megabits(quality.bitRate).toFixed(1)} Mbps</output>
           </span>
-          <input
-            type="range"
+          <CustomSlider
             min={500_000}
             max={50_000_000}
             step={500_000}
             value={quality.bitRate}
-            onChange={(event) =>
-              onChange({ ...quality, bitRate: Number(event.target.value) })
+            onChange={(val) =>
+              onChange({ ...quality, bitRate: val })
             }
           />
-        </label>
+        </div>
 
         <div className="field-grid two">
           <label className="field">
@@ -371,143 +375,134 @@ export function StreamPanel({
           <div className="field-grid two">
             <label className="field">
               <span>Audio codec</span>
-              <select
+              <CustomSelect
                 value={quality.audio.codec}
                 disabled={!quality.audio.enabled}
-                onChange={(event) =>
+                onChange={(val) =>
                   onChange({
                     ...quality,
                     audio: {
                       ...quality.audio,
-                      codec: event.target.value as AudioCodecPreference,
+                      codec: val as AudioCodecPreference,
                       encoder: undefined,
                     },
                   })
                 }
-              >
-                <option value="auto">Auto · raw reliability</option>
-                <option
-                  value="raw"
-                  disabled={!capabilities?.browserAudioCodecs.raw}
-                >
-                  Raw PCM · lossless
-                </option>
-                <option
-                  value="opus"
-                  disabled={!capabilities?.browserAudioCodecs.opus}
-                >
-                  Opus
-                </option>
-                <option
-                  value="aac"
-                  disabled={!capabilities?.browserAudioCodecs.aac}
-                >
-                  AAC
-                </option>
-                <option
-                  value="flac"
-                  disabled={!capabilities?.browserAudioCodecs.flac}
-                >
-                  FLAC
-                </option>
-              </select>
+                options={[
+                  { value: "auto", label: "Auto · raw reliability" },
+                  {
+                    value: "raw",
+                    label: "Raw PCM · lossless",
+                    disabled: !capabilities?.browserAudioCodecs.raw,
+                  },
+                  {
+                    value: "opus",
+                    label: "Opus",
+                    disabled: !capabilities?.browserAudioCodecs.opus,
+                  },
+                  {
+                    value: "aac",
+                    label: "AAC",
+                    disabled: !capabilities?.browserAudioCodecs.aac,
+                  },
+                  {
+                    value: "flac",
+                    label: "FLAC",
+                    disabled: !capabilities?.browserAudioCodecs.flac,
+                  },
+                ]}
+              />
             </label>
             <label className="field">
               <span>Audio encoder</span>
-              <select
+              <CustomSelect
                 value={quality.audio.encoder ?? ""}
                 disabled={!compressedAudio}
-                onChange={(event) =>
+                onChange={(val) =>
                   onChange({
                     ...quality,
                     audio: {
                       ...quality.audio,
-                      encoder: event.target.value || undefined,
+                      encoder: val ? String(val) : undefined,
                     },
                   })
                 }
-              >
-                <option value="">Android default</option>
-                {availableAudioEncoders.map((encoder) => (
-                  <option
-                    key={`${encoder.codec}:${encoder.name}`}
-                    value={encoder.name}
-                  >
-                    {encoder.name}
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: "", label: "Android default" },
+                  ...availableAudioEncoders.map((encoder) => ({
+                    value: encoder.name,
+                    label: encoder.name,
+                  })),
+                ]}
+              />
             </label>
           </div>
-          <label className="range-field">
+          <div className="range-field">
             <span>
               Compressed audio bitrate{" "}
               <output>{Math.round(quality.audio.bitRate / 1000)} kbps</output>
             </span>
-            <input
-              type="range"
+            <CustomSlider
               min={32_000}
               max={512_000}
               step={16_000}
               value={quality.audio.bitRate}
               disabled={!quality.audio.enabled || !compressedAudio}
-              onChange={(event) =>
+              onChange={(val) =>
                 onChange({
                   ...quality,
                   audio: {
                     ...quality.audio,
-                    bitRate: Number(event.target.value),
+                    bitRate: val,
                   },
                 })
               }
             />
-          </label>
-          <label className="range-field">
+          </div>
+          <div className="range-field">
             <span>
               Playback buffer{" "}
               <output>{quality.audio.bufferMs} ms</output>
             </span>
-            <input
-              type="range"
+            <CustomSlider
               min={20}
               max={250}
               step={5}
               value={quality.audio.bufferMs}
               disabled={!quality.audio.enabled}
-              onChange={(event) =>
+              onChange={(val) =>
                 onChange({
                   ...quality,
                   audio: {
                     ...quality.audio,
-                    bufferMs: Number(event.target.value),
+                    bufferMs: val,
                   },
                 })
               }
             />
-          </label>
-          <label className="range-field">
+          </div>
+          <div className="range-field">
             <span>
               Computer volume{" "}
               <output>{Math.round(quality.audio.volume * 100)}%</output>
             </span>
-            <input
-              type="range"
+            <CustomSlider
               min={0}
               max={1}
               step={0.05}
               value={quality.audio.volume}
               disabled={!quality.audio.enabled}
-              onChange={(event) =>
+              onChange={(val) =>
                 onChange({
                   ...quality,
                   audio: {
                     ...quality.audio,
-                    volume: Number(event.target.value),
+                    volume: val,
                   },
                 })
               }
             />
-          </label>
+          </div>
           <label className="switch inline">
             <input
               type="checkbox"
@@ -538,37 +533,37 @@ export function StreamPanel({
           <div className="settings-disclosure-body">
             <label className="field">
               <span>Browser renderer</span>
-              <select
+              <CustomSelect
                 value={quality.renderer}
-                onChange={(event) =>
+                onChange={(val) =>
                   onChange({
                     ...quality,
-                    renderer: event.target
-                      .value as StreamQuality["renderer"],
+                    renderer: val as StreamQuality["renderer"],
                   })
                 }
-              >
-                <option value="auto">Auto · WebGL then bitmap fallback</option>
-                <option value="webgl">Require WebGL</option>
-                <option value="bitmap">Bitmap renderer</option>
-              </select>
+                options={[
+                  { value: "auto", label: "Auto · WebGL then bitmap fallback" },
+                  { value: "webgl", label: "Require WebGL" },
+                  { value: "bitmap", label: "Bitmap renderer" },
+                ]}
+              />
             </label>
             <label className="field">
               <span>Decoder hardware preference</span>
-              <select
+              <CustomSelect
                 value={quality.hardwareAcceleration}
-                onChange={(event) =>
+                onChange={(val) =>
                   onChange({
                     ...quality,
-                    hardwareAcceleration: event.target
-                      .value as StreamQuality["hardwareAcceleration"],
+                    hardwareAcceleration: val as StreamQuality["hardwareAcceleration"],
                   })
                 }
-              >
-                <option value="no-preference">Browser automatic</option>
-                <option value="prefer-hardware">Prefer hardware</option>
-                <option value="prefer-software">Prefer software</option>
-              </select>
+                options={[
+                  { value: "no-preference", label: "Browser automatic" },
+                  { value: "prefer-hardware", label: "Prefer hardware" },
+                  { value: "prefer-software", label: "Prefer software" },
+                ]}
+              />
             </label>
           </div>
         </details>
@@ -578,29 +573,32 @@ export function StreamPanel({
           <div className="settings-disclosure-body">
             <label className="field">
               <span>Android mouse mode</span>
-              <select
+              <CustomSelect
                 value={quality.mouse.mode}
-                onChange={(event) =>
+                onChange={(val) =>
                   onChange({
                     ...quality,
                     mouse: {
                       ...quality.mouse,
-                      mode: event.target
-                        .value as StreamQuality["mouse"]["mode"],
+                      mode: val as StreamQuality["mouse"]["mode"],
                     },
                   })
                 }
-              >
-                <option value="uhid">
-                  Physical UHID mouse · relative, recommended
-                </option>
-                <option value="sdk">
-                  SDK compatibility · absolute (explicit opt-in)
-                </option>
-                <option value="disabled">
-                  Disabled · mappings and touchscreen only
-                </option>
-              </select>
+                options={[
+                  {
+                    value: "uhid",
+                    label: "Physical UHID mouse · relative, recommended",
+                  },
+                  {
+                    value: "sdk",
+                    label: "SDK compatibility · absolute (explicit opt-in)",
+                  },
+                  {
+                    value: "disabled",
+                    label: "Disabled · mappings and touchscreen only",
+                  },
+                ]}
+              />
             </label>
 
             {quality.mouse.mode === "uhid" ? (
@@ -679,39 +677,40 @@ export function StreamPanel({
           <div className="settings-disclosure-body">
             <label className="field">
               <span>ADB scrcpy tunnel</span>
-              <select
+              <CustomSelect
                 value={quality.tunnel}
-                onChange={(event) =>
+                onChange={(val) =>
                   onChange({
                     ...quality,
-                    tunnel: event.target.value as StreamQuality["tunnel"],
+                    tunnel: val as StreamQuality["tunnel"],
                   })
                 }
-              >
-                <option value="auto">Auto · reverse then forward</option>
-                <option value="reverse">Prefer reverse</option>
-                <option value="forward">Force forward</option>
-              </select>
+                options={[
+                  { value: "auto", label: "Auto · reverse then forward" },
+                  { value: "reverse", label: "Prefer reverse" },
+                  { value: "forward", label: "Force forward" },
+                ]}
+              />
             </label>
             <label className="field">
               <span>Capture orientation</span>
-              <select
+              <CustomSelect
                 value={quality.captureOrientation}
-                onChange={(event) =>
+                onChange={(val) =>
                   onChange({
                     ...quality,
-                    captureOrientation: event.target
-                      .value as StreamQuality["captureOrientation"],
+                    captureOrientation: val as StreamQuality["captureOrientation"],
                   })
                 }
-              >
-                <option value="auto">Auto · follow Android</option>
-                <option value="initial">Lock initial orientation</option>
-                <option value="0">Lock 0°</option>
-                <option value="90">Lock 90°</option>
-                <option value="180">Lock 180°</option>
-                <option value="270">Lock 270°</option>
-              </select>
+                options={[
+                  { value: "auto", label: "Auto · follow Android" },
+                  { value: "initial", label: "Lock initial orientation" },
+                  { value: "0", label: "Lock 0°" },
+                  { value: "90", label: "Lock 90°" },
+                  { value: "180", label: "Lock 180°" },
+                  { value: "270", label: "Lock 270°" },
+                ]}
+              />
             </label>
             <label className="switch inline">
               <input

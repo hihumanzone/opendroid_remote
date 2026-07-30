@@ -12,6 +12,7 @@ import {
   IconClose,
   IconRefresh,
 } from "./icons/UiIcons";
+import { CustomSelect } from "./controls/CustomSelect";
 
 export interface ConnectionChromeProps {
   transport: AdbTransportSnapshot;
@@ -104,36 +105,36 @@ export function ConnectionChrome({
 
         <div className="connection-actions">
           {transport.devices.length > 0 ? (
-            <select
-              className="device-select"
-              value={selectedDevice}
-              disabled={busy}
-              onChange={(event) => onSelectDevice(event.target.value)}
-              aria-label="Android device"
-            >
-              {!selectedDevice ? (
-                <option value="">Choose a device</option>
-              ) : null}
-              {transport.devices.map((device) => {
-                const pending = transport.pending.find(
-                  (item) => item.descriptor.serial === device.serial,
-                );
-                return (
-                  <option value={device.serial} key={device.serial}>
-                    {device.label}
-                    {device.serial === activeSerial
-                      ? " — Live"
+            <div style={{ minWidth: 200, maxWidth: 280 }}>
+              <CustomSelect
+                value={selectedDevice}
+                disabled={busy}
+                placeholder="Choose a device"
+                aria-label="Android device"
+                onChange={onSelectDevice}
+                options={[
+                  ...(!selectedDevice ? [{ value: "", label: "Choose a device" }] : []),
+                  ...transport.devices.map((device) => {
+                    const pending = transport.pending.find(
+                      (item) => item.descriptor.serial === device.serial,
+                    );
+                    const statusText = device.serial === activeSerial
+                      ? "Live"
                       : connectedSerials.has(device.serial)
-                        ? " — ADB ready"
+                        ? "ADB ready"
                         : pending?.stage === "reconnecting"
-                          ? " — Reconnecting"
+                          ? "Reconnecting"
                           : pending
-                            ? " — Connecting"
-                            : " — Authorized"}
-                  </option>
-                );
-              })}
-            </select>
+                            ? "Connecting"
+                            : "Authorized";
+                    return {
+                      value: device.serial,
+                      label: `${device.label} — ${statusText}`,
+                    };
+                  }),
+                ]}
+              />
+            </div>
           ) : null}
           {selectedDevice &&
           !connectedSerials.has(selectedDevice) &&

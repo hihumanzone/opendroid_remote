@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import type { GameMapping } from "../profiles/schema";
+import { CustomSelect } from "./controls/CustomSelect";
 
 export interface MappingInspectorProps {
   mapping?: GameMapping;
@@ -119,18 +120,19 @@ export function MappingInspector({
 
       <label className="field">
         <span>Orientation</span>
-        <select
+        <CustomSelect
           value={mapping.orientation}
-          onChange={(event) =>
+          onChange={(val) =>
             update({
-              orientation: event.target.value as GameMapping["orientation"],
+              orientation: val as GameMapping["orientation"],
             })
           }
-        >
-          <option value="any">Any orientation</option>
-          <option value="landscape">Landscape only</option>
-          <option value="portrait">Portrait only</option>
-        </select>
+          options={[
+            { value: "any", label: "Any orientation" },
+            { value: "landscape", label: "Landscape only" },
+            { value: "portrait", label: "Portrait only" },
+          ]}
+        />
       </label>
 
       <div className="field-grid two">
@@ -286,33 +288,35 @@ export function MappingInspector({
         <>
           <label className="field">
             <span>Mouse button</span>
-            <select
+            <CustomSelect
               value={mapping.button}
-              onChange={(event) =>
-                onChange({ ...mapping, button: Number(event.target.value) })
+              onChange={(val) =>
+                onChange({ ...mapping, button: Number(val) })
               }
-            >
-              <option value={0}>Primary</option>
-              <option value={1}>Middle</option>
-              <option value={2}>Secondary</option>
-              <option value={3}>Back</option>
-              <option value={4}>Forward</option>
-            </select>
+              options={[
+                { value: 0, label: "Primary" },
+                { value: 1, label: "Middle" },
+                { value: 2, label: "Secondary" },
+                { value: 3, label: "Back" },
+                { value: 4, label: "Forward" },
+              ]}
+            />
           </label>
           <label className="field">
             <span>Behavior</span>
-            <select
+            <CustomSelect
               value={mapping.behavior}
-              onChange={(event) =>
+              onChange={(val) =>
                 onChange({
                   ...mapping,
-                  behavior: event.target.value as "tap" | "hold",
+                  behavior: val as "tap" | "hold",
                 })
               }
-            >
-              <option value="hold">Hold while pressed</option>
-              <option value="tap">Timed tap</option>
-            </select>
+              options={[
+                { value: "hold", label: "Hold while pressed" },
+                { value: "tap", label: "Timed tap" },
+              ]}
+            />
           </label>
           {mapping.behavior === "tap" ? (
             <NumberField

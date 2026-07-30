@@ -5,6 +5,8 @@ import { useRef } from "react";
 import type { GameProfile } from "../profiles/schema";
 import type { ImportPreferences } from "../settings/AppSettings";
 import { IconPlus, IconDownload, IconUpload, IconTrash, IconCheck } from "./icons/UiIcons";
+import { CustomSelect } from "./controls/CustomSelect";
+import { CustomSlider } from "./controls/CustomSlider";
 
 export interface ProfilePanelProps {
   profiles: readonly GameProfile[];
@@ -70,16 +72,16 @@ export function ProfilePanel({
 
         <label className="field">
           <span>Switch mapping profile</span>
-          <select
+          <CustomSelect
             value={active?.id ?? ""}
-            onChange={(event) => onSelect(event.target.value)}
-          >
-            {profiles.map((profile) => (
-              <option key={profile.id} value={profile.id}>
-                {profile.name}
-              </option>
-            ))}
-          </select>
+            onChange={onSelect}
+            placeholder="Select a profile..."
+            options={profiles.map((p) => ({
+              value: p.id,
+              label: p.name,
+              description: `${p.mappings.length} mapping${p.mappings.length === 1 ? "" : "s"}`,
+            }))}
+          />
         </label>
 
         {active ? (
@@ -149,28 +151,27 @@ export function ProfilePanel({
               />
             </label>
 
-            <label className="range-field">
+            <div className="range-field">
               <span>
                 Overlay opacity{" "}
                 <output>{Math.round(active.settings.overlayOpacity * 100)}%</output>
               </span>
-              <input
-                type="range"
+              <CustomSlider
                 min={0.15}
                 max={1}
                 step={0.05}
                 value={active.settings.overlayOpacity}
-                onChange={(event) =>
+                onChange={(val) =>
                   onChange({
                     ...active,
                     settings: {
                       ...active.settings,
-                      overlayOpacity: Number(event.target.value),
+                      overlayOpacity: val,
                     },
                   })
                 }
               />
-            </label>
+            </div>
           </>
         ) : null}
 
@@ -230,38 +231,36 @@ export function ProfilePanel({
         </p>
         <label className="field">
           <span>When a profile ID already exists</span>
-          <select
+          <CustomSelect
             value={importPreferences.conflictStrategy}
-            onChange={(event) =>
+            onChange={(val) =>
               onImportPreferencesChange({
                 ...importPreferences,
-                conflictStrategy: event.target
-                  .value as ImportPreferences["conflictStrategy"],
+                conflictStrategy: val as ImportPreferences["conflictStrategy"],
               })
             }
-          >
-            <option value="copy">Create a copy with new IDs</option>
-            <option value="replace">Replace the existing profile</option>
-            <option value="skip">Skip the duplicate</option>
-          </select>
+            options={[
+              { value: "copy", label: "Create a copy with new IDs" },
+              { value: "replace", label: "Replace the existing profile" },
+              { value: "skip", label: "Skip the duplicate" },
+            ]}
+          />
         </label>
         <label className="field">
           <span>Maximum file size</span>
-          <select
+          <CustomSelect
             value={importPreferences.maxFileSizeMb}
-            onChange={(event) =>
+            onChange={(val) =>
               onImportPreferencesChange({
                 ...importPreferences,
-                maxFileSizeMb: Number(event.target.value),
+                maxFileSizeMb: Number(val),
               })
             }
-          >
-            {[1, 2, 5, 10, 25, 50].map((size) => (
-              <option key={size} value={size}>
-                {size} MB per JSON file
-              </option>
-            ))}
-          </select>
+            options={[1, 2, 5, 10, 25, 50].map((size) => ({
+              value: size,
+              label: `${size} MB per JSON file`,
+            }))}
+          />
         </label>
         <label className="switch inline">
           <input
