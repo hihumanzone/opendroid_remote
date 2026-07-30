@@ -1,0 +1,55 @@
+{
+  "name": "opendroid-remote",
+  "version": "1.6.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "install:ci": "bash scripts/install-ci.sh",
+    "dev": "node scripts/dev.mjs",
+    "build": "node scripts/build.mjs",
+    "start": "node scripts/start.mjs",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts",
+    "typecheck": "tsc --noEmit",
+    "validate:artifact": "node scripts/validate-artifact.mjs",
+    "lint": "eslint . --ignore-pattern dist --ignore-pattern dist-static --ignore-pattern .next"
+  },
+  "dependencies": {
+    "@yume-chan/adb": "2.6.2",
+    "@yume-chan/adb-credential-web": "2.1.0",
+    "@yume-chan/adb-daemon-webusb": "2.3.2",
+    "@yume-chan/adb-scrcpy": "2.3.2",
+    "@yume-chan/scrcpy": "2.3.0",
+    "@yume-chan/scrcpy-decoder-webcodecs": "2.5.3",
+    "@yume-chan/stream-extra": "2.6.1",
+    "next": "16.2.12",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "1.48.0",
+    "@cloudflare/workers-types": "5.20260729.1",
+    "@types/node": "26.1.2",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@types/w3c-web-usb": "1.0.14",
+    "@vitejs/plugin-react": "6.0.4",
+    "@vitejs/plugin-rsc": "0.5.32",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.2.12",
+    "react-server-dom-webpack": "19.2.8",
+    "typescript": "5.9.3",
+    "vinext": "0.0.50",
+    "vite": "8.1.5",
+    "vitest": "4.1.10",
+    "wrangler": "4.115.0"
+  },
+  "overrides": {
+    "postcss": "8.5.25",
+    "sharp": "0.35.3"
+  },
+  "type": "module",
+  "displayName": "OpenDroid Remote"
+}

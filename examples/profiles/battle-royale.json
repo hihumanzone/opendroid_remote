@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "id": "profile-example-battle-royale",
+  "name": "Battle Royale Example",
+  "game": {
+    "title": "Example landscape shooter",
+    "packageName": "com.example.game"
+  },
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z",
+  "reference": {
+    "orientation": "landscape",
+    "width": 2400,
+    "height": 1080
+  },
+  "settings": {
+    "emergencyCode": "Escape",
+    "exclusiveInput": false,
+    "overlayOpacity": 0.88,
+    "mouseSensitivity": 0.0015
+  },
+  "mappings": [
+    {
+      "id": "mapping-example-movement",
+      "name": "Movement",
+      "type": "joystick",
+      "enabled": true,
+      "position": { "x": 0.16, "y": 0.76 },
+      "orientation": "landscape",
+      "keys": {
+        "up": "KeyW",
+        "down": "KeyS",
+        "left": "KeyA",
+        "right": "KeyD"
+      },
+      "radius": 0.09,
+      "smoothing": 0.35
+    },
+    {
+      "id": "mapping-example-fire",
+      "name": "Primary fire",
+      "type": "mouse-button",
+      "enabled": true,
+      "position": { "x": 0.87, "y": 0.58 },
+      "orientation": "landscape",
+      "button": 0,
+      "behavior": "hold",
+      "durationMs": 55
+    },
+    {
+      "id": "mapping-example-jump",
+      "name": "Jump",
+      "type": "tap",
+      "enabled": true,
+      "position": { "x": 0.78, "y": 0.78 },
+      "orientation": "landscape",
+      "trigger": { "kind": "key", "code": "Space" },
+      "durationMs": 55
+    },
+    {
+      "id": "mapping-example-look",
+      "name": "Camera look",
+      "type": "mouse-look",
+      "enabled": true,
+      "position": { "x": 0.62, "y": 0.42 },
+      "orientation": "landscape",
+      "sensitivity": 0.0015,
+      "radius": 0.2,
+      "invertX": false,
+      "invertY": false
+    }
+  ]
+}

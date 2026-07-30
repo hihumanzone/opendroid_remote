@@ -1,0 +1,311 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opendroid.example/schemas/profile-v1.json",
+  "title": "OpenDroid Remote game profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "name",
+    "createdAt",
+    "updatedAt",
+    "reference",
+    "settings",
+    "mappings"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "game": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string" },
+        "packageName": { "type": "string" }
+      }
+    },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["orientation"],
+      "properties": {
+        "orientation": { "$ref": "#/$defs/orientation" },
+        "width": { "type": "number", "exclusiveMinimum": 0 },
+        "height": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "settings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "emergencyCode",
+        "exclusiveInput",
+        "overlayOpacity",
+        "mouseSensitivity"
+      ],
+      "properties": {
+        "emergencyCode": { "type": "string", "minLength": 1 },
+        "exclusiveInput": {
+          "type": "boolean",
+          "description": "Deprecated schema-v1 compatibility field. The runtime ignores it and always forwards supported unmapped input to Android."
+        },
+        "overlayOpacity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "mouseSensitivity": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "mappings": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          { "$ref": "#/$defs/tap" },
+          { "$ref": "#/$defs/hold" },
+          { "$ref": "#/$defs/repeat" },
+          { "$ref": "#/$defs/swipe" },
+          { "$ref": "#/$defs/joystick" },
+          { "$ref": "#/$defs/mouseButton" },
+          { "$ref": "#/$defs/mouseLook" }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "orientation": {
+      "enum": ["any", "portrait", "landscape"]
+    },
+    "point": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y"],
+      "properties": {
+        "x": { "type": "number", "minimum": 0, "maximum": 1 },
+        "y": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "keyTrigger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "code"],
+      "properties": {
+        "kind": { "const": "key" },
+        "code": { "type": "string", "minLength": 1 }
+      }
+    },
+    "baseProperties": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "enabled": { "type": "boolean" },
+        "position": { "$ref": "#/$defs/point" },
+        "orientation": { "$ref": "#/$defs/orientation" }
+      }
+    },
+    "tap": {
+      "allOf": [
+        { "$ref": "#/$defs/baseProperties" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "name",
+            "type",
+            "enabled",
+            "position",
+            "orientation",
+            "trigger",
+            "durationMs"
+          ],
+          "properties": {
+            "id": { "type": "string", "minLength": 1 },
+            "name": { "type": "string", "minLength": 1 },
+            "type": { "const": "tap" },
+            "enabled": { "type": "boolean" },
+            "position": { "$ref": "#/$defs/point" },
+            "orientation": { "$ref": "#/$defs/orientation" },
+            "trigger": { "$ref": "#/$defs/keyTrigger" },
+            "durationMs": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        }
+      ]
+    },
+    "hold": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "type",
+        "enabled",
+        "position",
+        "orientation",
+        "trigger"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "type": { "const": "hold" },
+        "enabled": { "type": "boolean" },
+        "position": { "$ref": "#/$defs/point" },
+        "orientation": { "$ref": "#/$defs/orientation" },
+        "trigger": { "$ref": "#/$defs/keyTrigger" }
+      }
+    },
+    "repeat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "type",
+        "enabled",
+        "position",
+        "orientation",
+        "trigger",
+        "intervalMs",
+        "pressMs"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "type": { "const": "repeat" },
+        "enabled": { "type": "boolean" },
+        "position": { "$ref": "#/$defs/point" },
+        "orientation": { "$ref": "#/$defs/orientation" },
+        "trigger": { "$ref": "#/$defs/keyTrigger" },
+        "intervalMs": { "type": "number", "exclusiveMinimum": 0 },
+        "pressMs": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "swipe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "type",
+        "enabled",
+        "position",
+        "orientation",
+        "trigger",
+        "end",
+        "durationMs",
+        "releaseOnComplete"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "type": { "const": "swipe" },
+        "enabled": { "type": "boolean" },
+        "position": { "$ref": "#/$defs/point" },
+        "orientation": { "$ref": "#/$defs/orientation" },
+        "trigger": { "$ref": "#/$defs/keyTrigger" },
+        "end": { "$ref": "#/$defs/point" },
+        "durationMs": { "type": "number", "exclusiveMinimum": 0 },
+        "releaseOnComplete": { "type": "boolean" }
+      }
+    },
+    "joystick": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "type",
+        "enabled",
+        "position",
+        "orientation",
+        "keys",
+        "radius",
+        "smoothing"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "type": { "const": "joystick" },
+        "enabled": { "type": "boolean" },
+        "position": { "$ref": "#/$defs/point" },
+        "orientation": { "$ref": "#/$defs/orientation" },
+        "keys": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["up", "down", "left", "right"],
+          "properties": {
+            "up": { "type": "string", "minLength": 1 },
+            "down": { "type": "string", "minLength": 1 },
+            "left": { "type": "string", "minLength": 1 },
+            "right": { "type": "string", "minLength": 1 }
+          }
+        },
+        "radius": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "smoothing": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "mouseButton": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "type",
+        "enabled",
+        "position",
+        "orientation",
+        "button",
+        "behavior",
+        "durationMs"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "type": { "const": "mouse-button" },
+        "enabled": { "type": "boolean" },
+        "position": { "$ref": "#/$defs/point" },
+        "orientation": { "$ref": "#/$defs/orientation" },
+        "button": { "type": "integer", "minimum": 0 },
+        "behavior": { "enum": ["tap", "hold"] },
+        "durationMs": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "mouseLook": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "type",
+        "enabled",
+        "position",
+        "orientation",
+        "sensitivity",
+        "radius",
+        "invertX",
+        "invertY"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "type": { "const": "mouse-look" },
+        "enabled": { "type": "boolean" },
+        "position": { "$ref": "#/$defs/point" },
+        "orientation": { "$ref": "#/$defs/orientation" },
+        "sensitivity": { "type": "number", "exclusiveMinimum": 0 },
+        "radius": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "invertX": { "type": "boolean" },
+        "invertY": { "type": "boolean" }
+      }
+    }
+  }
+}
