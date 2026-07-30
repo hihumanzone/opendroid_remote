@@ -737,6 +737,7 @@ a:hover {
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   display: flex;
+  flex: 0 0 auto;
   gap: var(--space-1);
   justify-content: center;
   padding: var(--space-2);
