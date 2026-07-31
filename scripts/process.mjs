@@ -13,7 +13,7 @@ export function run(name, args = [], options = {}) {
   return new Promise((resolveRun, reject) => {
     const child = spawn(executable(name), args, {
       stdio: "inherit",
-      shell: false,
+      shell: process.platform === "win32",
       ...options,
     });
     child.on("error", reject);
