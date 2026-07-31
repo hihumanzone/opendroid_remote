@@ -649,7 +649,7 @@ a:hover {
   position: relative;
   user-select: none;
   background: #000;
-  border-radius: 4px;
+  border-radius: 0;
   overflow: hidden;
 }
 
@@ -1523,10 +1523,20 @@ a:hover {
   position: relative;
   user-select: none;
   background: #000;
-  border-radius: var(--radius-md);
+  border-radius: 0;
   overflow: hidden;
   border: 1px solid var(--line);
   transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+
+.video-surface:focus,
+.video-surface:focus-visible,
+.video-surface:focus-within,
+.video-workspace:focus,
+.video-workspace:focus-visible,
+.video-workspace:focus-within {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 .video-surface.is-editing {
@@ -1540,6 +1550,43 @@ a:hover {
 
 .video-surface.is-mouse-locked {
   cursor: none;
+}
+
+/* Fullscreen Mode Optimization - Maximum aspect-ratio container without artificial padding */
+.video-workspace:fullscreen,
+.video-workspace:-webkit-full-screen,
+.video-workspace:-moz-full-screen {
+  background: #000 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  box-shadow: none !important;
+}
+
+.video-workspace:fullscreen .video-fit,
+.video-workspace:-webkit-full-screen .video-fit,
+.video-workspace:-moz-full-screen .video-fit {
+  padding: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.video-workspace:fullscreen .video-viewport,
+.video-workspace:-webkit-full-screen .video-viewport,
+.video-workspace:-moz-full-screen .video-viewport {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.video-workspace:fullscreen .video-surface,
+.video-workspace:-webkit-full-screen .video-surface,
+.video-workspace:-moz-full-screen .video-surface {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 
 .video-empty {

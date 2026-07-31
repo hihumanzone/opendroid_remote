@@ -155,7 +155,18 @@ export function VideoStage({
     update();
     const observer = new ResizeObserver(update);
     observer.observe(container);
-    return () => observer.disconnect();
+
+    const handleFullscreenChange = () => {
+      update();
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+    };
   }, [videoWidth, videoHeight]);
 
   useEffect(() => {
