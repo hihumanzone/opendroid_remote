@@ -1552,6 +1552,139 @@ a:hover {
   cursor: none;
 }
 
+/* Key Mapping Overlay & Control Markers */
+.mapping-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.mapping-overlay.is-editing {
+  pointer-events: auto;
+}
+
+.mapping-item {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.mapping-marker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 6px 10px;
+  border-radius: var(--radius-md, 8px);
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1.5px solid var(--line-bright, rgba(255, 255, 255, 0.2));
+  color: #fff;
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+  font-family: inherit;
+}
+
+.mapping-overlay:not(.is-editing) .mapping-marker {
+  pointer-events: none;
+}
+
+.mapping-marker:hover {
+  border-color: var(--accent, #38bdf8);
+  background: rgba(30, 41, 59, 0.95);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5), 0 0 12px rgba(56, 189, 248, 0.3);
+}
+
+.mapping-item.is-selected .mapping-marker {
+  border-color: var(--accent, #38bdf8);
+  background: rgba(14, 165, 233, 0.25);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.35), 0 6px 16px rgba(0, 0, 0, 0.5);
+  transform: translate(-50%, -50%) scale(1.08);
+  z-index: 20;
+}
+
+.mapping-item.is-disabled {
+  opacity: 0.4;
+}
+
+.mapping-trigger {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: var(--ink, #f8fafc);
+  line-height: 1.2;
+}
+
+.mapping-type {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent, #38bdf8);
+  opacity: 0.9;
+  line-height: 1;
+  margin-top: 2px;
+}
+
+/* Range Circle for Joystick and Mouse Look */
+.mapping-range {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1.5px dashed var(--accent-border, rgba(56, 189, 248, 0.5));
+  background: rgba(56, 189, 248, 0.06);
+  pointer-events: none;
+}
+
+.mapping-item.is-selected .mapping-range {
+  border-color: var(--accent, #38bdf8);
+  background: rgba(56, 189, 248, 0.12);
+}
+
+/* Swipe Line and End Point */
+.mapping-line {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.mapping-line line {
+  stroke: var(--accent, #38bdf8);
+  stroke-width: 2.5;
+  stroke-dasharray: 6 4;
+  opacity: 0.85;
+}
+
+.mapping-endpoint {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent, #38bdf8);
+  border: 2px solid #fff;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.mapping-endpoint:hover {
+  transform: translate(-50%, -50%) scale(1.25);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.6);
+}
+
 /* Fullscreen Mode Optimization - Maximum aspect-ratio container without artificial padding */
 .video-workspace:fullscreen,
 .video-workspace:-webkit-full-screen,
