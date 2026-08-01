@@ -373,6 +373,21 @@ a:hover {
   border-color: var(--danger-border);
 }
 
+.button.danger.subtle,
+.button.subtle.danger {
+  background: var(--danger-subtle);
+  border-color: var(--danger-border);
+  color: var(--danger);
+}
+
+.button.danger.subtle:hover:not(:disabled),
+.button.subtle.danger:hover:not(:disabled) {
+  background: hsla(4, 100%, 68%, 0.22);
+  border-color: var(--danger);
+  color: hsl(4, 100%, 75%);
+  box-shadow: 0 0 12px hsla(4, 100%, 68%, 0.18);
+}
+
 .button.wide {
   width: 100%;
 }
@@ -1060,6 +1075,59 @@ a:hover {
 .field textarea:focus {
   border-color: var(--accent);
   outline: none;
+}
+
+/* Key Capture Button Component */
+.key-capture {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 12px;
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  cursor: pointer;
+  outline: none;
+}
+
+.key-capture:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: var(--line-bright);
+}
+
+.key-capture:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
+}
+
+.key-capture.is-capturing {
+  background: var(--accent-subtle);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 750;
+  box-shadow: 0 0 16px hsla(var(--hue-accent), var(--sat-accent), var(--light-accent), 0.25);
+  animation: key-capture-pulse 1.5s infinite ease-in-out;
+}
+
+@keyframes key-capture-pulse {
+  0%, 100% {
+    border-color: var(--accent);
+    box-shadow: 0 0 10px hsla(var(--hue-accent), var(--sat-accent), var(--light-accent), 0.2);
+  }
+  50% {
+    border-color: var(--accent-strong);
+    box-shadow: 0 0 20px hsla(var(--hue-accent), var(--sat-accent), var(--light-accent), 0.45);
+  }
 }
 
 .field-grid {
