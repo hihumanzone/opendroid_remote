@@ -11,7 +11,7 @@ export interface MappingOverlayProps {
   editing: boolean;
   visible: boolean;
   surfaceSize: Size;
-  onSelect(id: string): void;
+  onSelect(id?: string): void;
   onMove(id: string, point: { x: number; y: number }): void;
   onMoveSwipeEnd(id: string, point: { x: number; y: number }): void;
 }
@@ -126,11 +126,12 @@ export function MappingOverlay({
       onPointerDown={(event) => {
         if (!editing || event.target !== event.currentTarget) return;
         event.preventDefault();
+        onSelect(undefined);
         void pointFromEvent(event);
       }}
     >
       {profile.mappings.map((mapping) => {
-        const selected = selectedId === mapping.id;
+        const selected = editing && selectedId === mapping.id;
         const diameter = radiusPixels(mapping, surfaceSize);
         const rangeStyle =
           diameter === undefined
@@ -195,6 +196,7 @@ export function MappingOverlay({
               aria-label={`${mapping.name}: ${triggerLabel(mapping)}`}
               tabIndex={editing ? 0 : -1}
             >
+              <span className="mapping-center-marker" aria-hidden="true" />
               <span className="mapping-trigger">{triggerLabel(mapping)}</span>
               <span className="mapping-type">{typeLabel(mapping)}</span>
             </button>

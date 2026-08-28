@@ -304,7 +304,9 @@
           "maximum": 1
         },
         "invertX": { "type": "boolean" },
-        "invertY": { "type": "boolean" }
+        "invertY": { "type": "boolean" },
+        "enableTrigger": { "$ref": "#/$defs/keyTrigger" },
+        "disableTrigger": { "$ref": "#/$defs/keyTrigger" }
       }
     }
   }

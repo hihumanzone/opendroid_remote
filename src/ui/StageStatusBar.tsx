@@ -13,8 +13,13 @@ export interface StageStatusBarProps {
   audio: AudioPlaybackSnapshot;
   mouseMode: MouseInputMode;
   pointerLocked: boolean;
+  hasMouseLook?: boolean;
+  cameraLockActive?: boolean;
+  cameraLockEnableKey?: string;
+  cameraLockDisableKey?: string;
   overlaysVisible: boolean;
   onToggleOverlays(): void;
+  onToggleCameraLock?(): void;
 }
 
 function audioLabel(audio: AudioPlaybackSnapshot): string {
@@ -42,8 +47,13 @@ export function StageStatusBar({
   audio,
   mouseMode,
   pointerLocked,
+  hasMouseLook = false,
+  cameraLockActive = false,
+  cameraLockEnableKey,
+  cameraLockDisableKey,
   overlaysVisible,
   onToggleOverlays,
+  onToggleCameraLock,
 }: StageStatusBarProps) {
   return (
     <div className="stage-status-bar">
@@ -65,15 +75,29 @@ export function StageStatusBar({
         </span>
       </div>
 
-      <button
-        type="button"
-        className={`button subtle ${overlaysVisible ? "game-button active" : ""}`}
-        onClick={onToggleOverlays}
-        aria-pressed={overlaysVisible}
-      >
-        <IconLayers size={16} />
-        Overlays {overlaysVisible ? "On" : "Off"}
-      </button>
+      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+        {hasMouseLook ? (
+          <button
+            type="button"
+            className={`button subtle ${cameraLockActive ? "game-button active" : ""}`}
+            onClick={onToggleCameraLock}
+            aria-pressed={cameraLockActive}
+            title={`Camera Lock: ${cameraLockActive ? "Active" : "Disabled"}. Press ${cameraLockEnableKey?.replace(/^Key/, "") ?? "Y"} to lock, ${cameraLockDisableKey?.replace(/^Key/, "") ?? "Esc"} to unlock`}
+          >
+            Camera Lock: {cameraLockActive ? "Active" : "Off"}
+          </button>
+        ) : null}
+
+        <button
+          type="button"
+          className={`button subtle ${overlaysVisible ? "game-button active" : ""}`}
+          onClick={onToggleOverlays}
+          aria-pressed={overlaysVisible}
+        >
+          <IconLayers size={16} />
+          Overlays {overlaysVisible ? "On" : "Off"}
+        </button>
+      </div>
     </div>
   );
 }

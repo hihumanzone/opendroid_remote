@@ -48,9 +48,10 @@ export interface VideoStageProps {
   overlaysVisible: boolean;
   mappedMouseButtons: ReadonlySet<number>;
   hasMouseLook: boolean;
+  cameraLockActive?: boolean;
   mouseMode: MouseInputMode;
   pointerLocked: boolean;
-  onSelectMapping(id: string): void;
+  onSelectMapping(id?: string): void;
   onMoveMapping(id: string, point: NormalizedPoint): void;
   onMoveSwipeEnd(id: string, point: NormalizedPoint): void;
   onDirectTouch(
@@ -110,6 +111,7 @@ export function VideoStage({
   overlaysVisible,
   mappedMouseButtons,
   hasMouseLook,
+  cameraLockActive = false,
   mouseMode,
   pointerLocked,
   onSelectMapping,
@@ -304,7 +306,7 @@ export function VideoStage({
         onGameMouseDown(event.button);
         if (
           event.button === 0 &&
-          (hasMouseLook || (mouseMode === "uhid" && !pointerLocked))
+          ((hasMouseLook && cameraLockActive) || (mouseMode === "uhid" && !pointerLocked))
         ) {
           onRequestPointerLock();
         }
@@ -327,7 +329,7 @@ export function VideoStage({
         event.button === 0
       ) {
         onRequestPointerLock();
-      } else if (hasMouseLook && event.button === 0) {
+      } else if (hasMouseLook && cameraLockActive && event.button === 0) {
         onRequestPointerLock();
       }
       return;
@@ -398,7 +400,7 @@ export function VideoStage({
             className={`video-surface ${streaming ? "is-streaming" : ""} ${
               editing ? "is-editing" : ""
             } ${mode === "play" ? "is-play-mode" : ""} ${
-              hasMouseLook && mode === "play" ? "captures-mouse-look" : ""
+              hasMouseLook && mode === "play" && cameraLockActive ? "captures-mouse-look" : ""
             } ${
               mouseMode === "uhid"
                 ? "uses-native-mouse"

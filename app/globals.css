@@ -1702,6 +1702,32 @@ a:hover {
   margin-top: 2px;
 }
 
+.mapping-center-marker {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1.5px solid var(--accent, #38bdf8);
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.9), 0 0 6px rgba(56, 189, 248, 0.8);
+  pointer-events: none;
+  z-index: 5;
+  opacity: 0.85;
+  transition: transform 150ms ease, opacity 150ms ease, background 150ms ease, border-color 150ms ease;
+}
+
+.mapping-marker:hover .mapping-center-marker,
+.mapping-item.is-selected .mapping-center-marker {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1.25);
+  background: #38bdf8;
+  border-color: #ffffff;
+  box-shadow: 0 0 0 1.5px rgba(15, 23, 42, 0.9), 0 0 8px rgba(56, 189, 248, 1);
+}
+
 /* Range Circle for Joystick and Mouse Look */
 .mapping-range {
   position: absolute;

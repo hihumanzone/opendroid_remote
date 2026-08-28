@@ -48,6 +48,7 @@ import {
   serializeProfile,
   type GameMapping,
   type GameProfile,
+  type MouseLookMapping,
 } from "./profiles/schema";
 import {
   AppSettingsRepository,
@@ -186,6 +187,7 @@ export default function App() {
   const [panel, setPanel] = useState<WorkspacePanelId>("mappings");
   const [controlMode, setControlMode] = useState<ControlMode>("play");
   const [pointerLocked, setPointerLocked] = useState(false);
+  const [cameraLockActive, setCameraLockActive] = useState(false);
   const [overlaysVisible, setOverlaysVisible] = useState(true);
   const [busy, setBusy] = useState(false);
   const [remoteClipboard, setRemoteClipboard] = useState("");
@@ -211,6 +213,22 @@ export default function App() {
     [profile, streamOrientation],
   );
   const hasMouseLook = hasActiveMouseLook(profile, streamOrientation);
+  const activeMouseLookMapping = useMemo(
+    () =>
+      profile?.mappings.find(
+        (mapping): mapping is MouseLookMapping =>
+          mapping.type === "mouse-look" &&
+          mapping.enabled &&
+          (mapping.orientation === "any" || mapping.orientation === streamOrientation),
+      ),
+    [profile, streamOrientation],
+  );
+  const cameraLockEnableKey =
+    activeMouseLookMapping?.enableTrigger?.code ??
+    (hasMouseLook ? "KeyY" : undefined);
+  const cameraLockDisableKey =
+    activeMouseLookMapping?.disableTrigger?.code ??
+    (hasMouseLook ? "Escape" : undefined);
   const effectiveMouseMode =
     session.control?.mouseMode ??
     (quality.mouse.mode === "uhid" &&
@@ -355,13 +373,88 @@ export default function App() {
     (next: ControlMode) => {
       setControlMode(next);
       if (next === "edit") {
+        setCameraLockActive(false);
         void releaseAllInput(true);
       } else {
+        setSelectedMappingId(undefined);
         surfaceRef.current?.focus({ preventScroll: true });
       }
     },
     [releaseAllInput],
   );
+
+  const requestPointerLock = useCallback(async () => {
+    if (!browser.pointerLock || !surfaceRef.current) {
+      showNotice("Pointer Lock is unavailable in this browser.");
+      return;
+    }
+    if (
+      document.pointerLockElement === surfaceRef.current ||
+      pointerLockRequestRef.current
+    ) {
+      return;
+    }
+    pointerLockRequestRef.current = true;
+    const surface = surfaceRef.current;
+    try {
+      if (qualityRef.current.mouse.rawInput) {
+        try {
+          await surface.requestPointerLock({ unadjustedMovement: true });
+          diagnostics.info(
+            "control",
+            "raw-pointer-lock",
+            "Pointer Lock captured unadjusted mouse movement.",
+          );
+          return;
+        } catch (error) {
+          diagnostics.debug(
+            "control",
+            "raw-pointer-lock-unavailable",
+            "Raw pointer movement is unavailable; retrying standard Pointer Lock.",
+            error,
+          );
+        }
+      }
+      await surface.requestPointerLock();
+    } catch (error) {
+      setCameraLockActive(false);
+      diagnostics.warn(
+        "control",
+        "pointer-lock-failed",
+        "The browser did not allow mouse capture.",
+        error,
+      );
+      showNotice("Mouse capture was blocked by the browser.");
+    } finally {
+      pointerLockRequestRef.current = false;
+    }
+  }, [browser.pointerLock, diagnostics, showNotice]);
+
+  const enableCameraLock = useCallback(async () => {
+    if (!hasMouseLook) return;
+    setCameraLockActive(true);
+    await requestPointerLock();
+    void engineRef.current?.setPointerLockActive(true);
+  }, [hasMouseLook, requestPointerLock]);
+
+  const disableCameraLock = useCallback(async () => {
+    setCameraLockActive(false);
+    if (document.pointerLockElement) {
+      try {
+        await document.exitPointerLock();
+      } catch {}
+    }
+    void engineRef.current?.setPointerLockActive(false);
+    void session.control?.releaseMouseButtons();
+  }, [session]);
+
+  const toggleCameraLock = useCallback(async () => {
+    if (cameraLockActive) {
+      await disableCameraLock();
+    } else {
+      await enableCameraLock();
+    }
+  }, [cameraLockActive, disableCameraLock, enableCameraLock]);
 
   const activateDeviceNow = useCallback(
     async (serial: string, announce = true): Promise<void> => {
@@ -676,6 +769,9 @@ export default function App() {
     const onPointerLockChange = () => {
       const active = document.pointerLockElement === surfaceRef.current;
       setPointerLocked(active);
+      if (!active) {
+        setCameraLockActive(false);
+      }
       void engineRef.current?.setPointerLockActive(active);
       if (!active) void session.control?.releaseMouseButtons();
     };
@@ -683,7 +779,7 @@ export default function App() {
       if (document.pointerLockElement !== surfaceRef.current) return;
       const surface = surfaceRef.current;
       if (!surface) return;
-      if (controlMode === "play" && hasMouseLook) {
+      if (controlMode === "play" && hasMouseLook && cameraLockActive) {
         void engineRef.current?.handleMouseMove(
           event.movementX,
           event.movementY,
@@ -703,7 +799,7 @@ export default function App() {
       document.removeEventListener("pointerlockchange", onPointerLockChange);
       document.removeEventListener("mousemove", onMouseMove);
     };
-  }, [controlMode, hasMouseLook, session]);
+  }, [cameraLockActive, controlMode, hasMouseLook, session]);
 
   useEffect(() => {
     const ownsKeyboardFocus = () => {
@@ -716,6 +812,23 @@ export default function App() {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!streaming || busy || isEditableTarget(event.target)) {
         return;
+      }
+      if (controlMode === "play" && hasMouseLook) {
+        const isEnable =
+          Boolean(cameraLockEnableKey) && event.code === cameraLockEnableKey;
+        const isDisable =
+          Boolean(cameraLockDisableKey) && event.code === cameraLockDisableKey;
+        if (cameraLockActive && (isDisable || isEnable)) {
+          event.preventDefault();
+          event.stopPropagation();
+          void disableCameraLock();
+          return;
+        } else if (!cameraLockActive && isEnable) {
+          event.preventDefault();
+          event.stopPropagation();
+          void enableCameraLock();
+          return;
+        }
       }
       if (controlMode === "play" && mappedCodes.has(event.code)) {
         event.preventDefault();
@@ -781,6 +894,15 @@ export default function App() {
       const capturedMapping =
         capturedMappingKeysRef.current.delete(event.code);
       const directKey = directKeysRef.current.release(event.code);
+      if (
+        controlMode === "play" &&
+        hasMouseLook &&
+        (event.code === cameraLockEnableKey || event.code === cameraLockDisableKey)
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
       if (capturedMapping || directKey) {
         event.preventDefault();
         event.stopPropagation();
@@ -840,8 +962,14 @@ export default function App() {
     };
   }, [
     busy,
+    cameraLockActive,
+    cameraLockDisableKey,
+    cameraLockEnableKey,
     controlMode,
     diagnostics,
+    disableCameraLock,
+    enableCameraLock,
+    hasMouseLook,
     mappedCodes,
     releaseAllInput,
     session,
@@ -1199,6 +1327,7 @@ export default function App() {
       profiles.find((item) => item.id === id) ?? (await repository.get(id));
     if (!selected) return;
     await releaseAllInput(true);
+    setCameraLockActive(false);
     setProfile(selected);
     setSelectedMappingId(selected.mappings[0]?.id);
   };
@@ -1208,6 +1337,7 @@ export default function App() {
     const mapping = createMapping(type);
     updateProfile({ ...profile, mappings: [...profile.mappings, mapping] });
     setSelectedMappingId(mapping.id);
+    setCameraLockActive(false);
     changeControlMode("edit");
   };
 
@@ -1259,12 +1389,14 @@ export default function App() {
     );
     updateProfile(next);
     setSelectedMappingId(undefined);
+    setCameraLockActive(false);
     changeControlMode("edit");
   };
 
   const duplicateProfile = async () => {
     if (!profile) return;
     await releaseAllInput(true);
+    setCameraLockActive(false);
     const now = new Date().toISOString();
     const next: GameProfile = {
       ...structuredClone(profile),
@@ -1287,6 +1419,7 @@ export default function App() {
       return;
     }
     await releaseAllInput(true);
+    setCameraLockActive(false);
     await repository.delete(profile.id);
     let remaining = (await repository.list()).filter(
       (item) => item.id !== profile.id,
@@ -1311,6 +1444,7 @@ export default function App() {
     const lastImported = result.imported.at(-1);
     if (lastImported && importPreferences.activateAfterImport) {
       await releaseAllInput(true);
+      setCameraLockActive(false);
       setProfile(lastImported);
       setSelectedMappingId(lastImported.mappings[0]?.id);
     } else if (
@@ -1352,52 +1486,6 @@ export default function App() {
     const next = controlMode === "play" ? "edit" : "play";
     if (next === "edit") setPanel("mappings");
     changeControlMode(next);
-  };
-
-  const requestPointerLock = async () => {
-    if (!browser.pointerLock || !surfaceRef.current) {
-      showNotice("Pointer Lock is unavailable in this browser.");
-      return;
-    }
-    if (
-      document.pointerLockElement === surfaceRef.current ||
-      pointerLockRequestRef.current
-    ) {
-      return;
-    }
-    pointerLockRequestRef.current = true;
-    const surface = surfaceRef.current;
-    try {
-      if (qualityRef.current.mouse.rawInput) {
-        try {
-          await surface.requestPointerLock({ unadjustedMovement: true });
-          diagnostics.info(
-            "control",
-            "raw-pointer-lock",
-            "Pointer Lock captured unadjusted mouse movement.",
-          );
-          return;
-        } catch (error) {
-          diagnostics.debug(
-            "control",
-            "raw-pointer-lock-unavailable",
-            "Raw pointer movement is unavailable; retrying standard Pointer Lock.",
-            error,
-          );
-        }
-      }
-      await surface.requestPointerLock();
-    } catch (error) {
-      diagnostics.warn(
-        "control",
-        "pointer-lock-failed",
-        "The browser did not allow mouse capture.",
-        error,
-      );
-      showNotice("Mouse capture was blocked by the browser.");
-    } finally {
-      pointerLockRequestRef.current = false;
-    }
   };
 
   const toggleFullscreen = async () => {
@@ -1529,6 +1617,7 @@ export default function App() {
             overlaysVisible={overlaysVisible}
             mappedMouseButtons={mouseButtons}
             hasMouseLook={hasMouseLook}
+            cameraLockActive={cameraLockActive}
             mouseMode={effectiveMouseMode}
             pointerLocked={pointerLocked}
             onSelectMapping={setSelectedMappingId}
@@ -1578,10 +1667,15 @@ export default function App() {
             audio={sessionState.audio}
             mouseMode={effectiveMouseMode}
             pointerLocked={pointerLocked}
+            hasMouseLook={hasMouseLook}
+            cameraLockActive={cameraLockActive}
+            cameraLockEnableKey={cameraLockEnableKey}
+            cameraLockDisableKey={cameraLockDisableKey}
             overlaysVisible={overlaysVisible}
             onToggleOverlays={() =>
               setOverlaysVisible((value) => !value)
             }
+            onToggleCameraLock={() => void toggleCameraLock()}
           />
 
           <AndroidControlDock

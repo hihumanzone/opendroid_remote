@@ -23,7 +23,7 @@ export interface MappingPanelProps {
   selectedId?: string;
   mode: ControlMode;
   onModeChange(value: ControlMode): void;
-  onSelect(id: string): void;
+  onSelect(id?: string): void;
   onAdd(type: GameMapping["type"]): void;
   onChange(mapping: GameMapping): void;
   onDelete(id: string): void;
@@ -102,7 +102,7 @@ export function MappingPanel({
                 type="button"
                 key={mapping.id}
                 className={selectedId === mapping.id ? "active" : ""}
-                onClick={() => onSelect(mapping.id)}
+                onClick={() => onSelect(selectedId === mapping.id ? undefined : mapping.id)}
               >
                 <span className={`mini-dot ${mapping.enabled ? "ok" : ""}`} />
                 <IconMappingType type={mapping.type} size={16} />

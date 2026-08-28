@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { GameMapping } from "../profiles/schema";
 import { CustomSelect } from "./controls/CustomSelect";
@@ -26,18 +26,52 @@ function NumberField({
   step: number;
   onChange(value: number): void;
 }) {
+  const [text, setText] = useState(() => String(value));
+  const [isFocused, setIsFocused] = useState(false);
+
+  useEffect(() => {
+    if (!isFocused) {
+      setText(String(value));
+    }
+  }, [value, isFocused]);
+
+  const commit = (raw: string) => {
+    let next = Number(raw);
+    if (!Number.isFinite(next) || raw.trim() === "") {
+      next = value;
+    }
+    const clamped = Math.min(max, Math.max(min, next));
+    const normalized = Number(clamped.toFixed(4));
+    setText(String(normalized));
+    onChange(normalized);
+  };
+
   return (
     <label className="field">
       <span>{label}</span>
       <input
         type="number"
-        value={value}
+        value={text}
         min={min}
         max={max}
         step={step}
+        onFocus={() => setIsFocused(true)}
         onChange={(event) => {
-          const next = Number(event.target.value);
-          if (Number.isFinite(next)) onChange(Math.min(max, Math.max(min, next)));
+          const raw = event.target.value;
+          setText(raw);
+          const next = Number(raw);
+          if (Number.isFinite(next) && next >= min && next <= max) {
+            onChange(next);
+          }
+        }}
+        onBlur={() => {
+          setIsFocused(false);
+          commit(text);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.currentTarget.blur();
+          }
         }}
       />
     </label>
@@ -333,6 +367,28 @@ export function MappingInspector({
 
       {mapping.type === "mouse-look" ? (
         <>
+          <div className="field-grid two">
+            <KeyCapture
+              label="Enable trigger"
+              code={mapping.enableTrigger?.code ?? "KeyY"}
+              onChange={(code) =>
+                onChange({
+                  ...mapping,
+                  enableTrigger: { kind: "key", code },
+                })
+              }
+            />
+            <KeyCapture
+              label="Disable trigger"
+              code={mapping.disableTrigger?.code ?? "Escape"}
+              onChange={(code) =>
+                onChange({
+                  ...mapping,
+                  disableTrigger: { kind: "key", code },
+                })
+              }
+            />
+          </div>
           <div className="field-grid two">
             <NumberField
               label="Sensitivity"
