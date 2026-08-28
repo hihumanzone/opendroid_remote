@@ -1838,20 +1838,6 @@ export default function App() {
         </aside>
       </div>
 
-      <footer className="app-footer">
-        <span>Open-source · no account · no telemetry · no network relay</span>
-        <span>
-          scrcpy 3.3.3 · ya-webadb stable ·{" "}
-          <a
-            href="https://github.com/yume-chan/ya-webadb"
-            target="_blank"
-            rel="noreferrer"
-          >
-            source stack
-          </a>
-        </span>
-      </footer>
-
       {notice ? (
         <div className="toast" role="status">
           {notice}

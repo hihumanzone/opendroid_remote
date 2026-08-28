@@ -244,4 +244,4 @@ The ADB key ring has its own IndexedDB database and localStorage mirror.
 Diagnostics are a bounded in-memory list with Error and BigInt sanitization.
 
 The only application fetch is the same-origin bundled scrcpy server. Upstream
-source links in the footer are ordinary user-activated links.
+source links in the Debug / Capabilities sidebar panel are ordinary user-activated links.
