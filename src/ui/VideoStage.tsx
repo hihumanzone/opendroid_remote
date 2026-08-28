@@ -248,6 +248,15 @@ export function VideoStage({
     streaming,
   ]);
 
+  useEffect(() => {
+    if (!pointerLocked) {
+      for (const button of capturedMouse.current) {
+        onGameMouseUp(button);
+      }
+      capturedMouse.current.clear();
+    }
+  }, [onGameMouseUp, pointerLocked]);
+
   const pointFor = (
     event: ReactPointerEvent<HTMLDivElement>,
     clampOutside = true,
@@ -300,9 +309,6 @@ export function VideoStage({
         )
       ) {
         capturedMouse.current.add(event.button);
-        if (!pointerLocked) {
-          event.currentTarget.setPointerCapture(event.pointerId);
-        }
         onGameMouseDown(event.button);
         if (
           event.button === 0 &&
@@ -314,9 +320,6 @@ export function VideoStage({
       }
       if (mouseMode === "disabled") return;
       const point = pointFor(event, false) ?? { x: 0.5, y: 0.5 };
-      if (!pointerLocked) {
-        event.currentTarget.setPointerCapture(event.pointerId);
-      }
       onMouseButton(
         point,
         event.button,

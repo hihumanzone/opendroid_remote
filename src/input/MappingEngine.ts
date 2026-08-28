@@ -6,6 +6,7 @@ import type {
   GameMapping,
   GameProfile,
   JoystickMapping,
+  MouseLookMapping,
   RepeatMapping,
   SwipeMapping,
 } from "../profiles/schema";
@@ -76,7 +77,8 @@ export class MappingEngine {
   readonly #joysticks = new Map<string, JoystickState>();
   readonly #mouseTapTimers = new Map<string, number>();
   readonly #lookPositions = new Map<string, NormalizedPoint>();
-  readonly #lookChains = new Map<string, Promise<void>>();
+  readonly #pendingLookDeltas = new Map<string, { dx: number; dy: number }>();
+  readonly #lookPumps = new Map<string, Promise<void>>();
   readonly #configurationQueue = new SerialTaskQueue();
 
   #profile: GameProfile;
@@ -304,6 +306,11 @@ export class MappingEngine {
         await this.#beginMouseLookTouches();
         return;
       }
+      this.#lookGeneration += 1;
+      const lookPumps = [...this.#lookPumps.values()];
+      await Promise.allSettled(lookPumps);
+      this.#lookPumps.clear();
+      this.#pendingLookDeltas.clear();
       for (const mapping of this.#activeMappings()) {
         if (mapping.type !== "mouse-look") continue;
         this.#lookPositions.delete(mapping.id);
@@ -320,7 +327,7 @@ export class MappingEngine {
   ): Promise<boolean> {
     if (!this.#enabled || !this.#pointerLockActive) return false;
     let consumed = false;
-    const movements: Promise<void>[] = [];
+    const pumps: Promise<void>[] = [];
     for (const mapping of this.#activeMappings()) {
       if (mapping.type !== "mouse-look") continue;
       consumed = true;
@@ -337,44 +344,66 @@ export class MappingEngine {
         sensitivity *
         1000 *
         (mapping.invertY ? -1 : 1);
-      const generation = this.#lookGeneration;
-      const previous = this.#lookChains.get(mapping.id) ?? Promise.resolve();
-      const movement = previous
-        .catch(() => {
-          // A failed control write is already diagnosed by the adapter.
-          // Do not poison the queue for later physical mouse deltas.
-        })
-        .then(async () => {
+
+      const pending = this.#pendingLookDeltas.get(mapping.id) ?? { dx: 0, dy: 0 };
+      pending.dx += dx;
+      pending.dy += dy;
+      this.#pendingLookDeltas.set(mapping.id, pending);
+
+      const pump = this.#triggerLookPump(mapping, radii);
+      pumps.push(pump);
+    }
+    await Promise.all(pumps);
+    return consumed;
+  }
+
+  #triggerLookPump(
+    mapping: MouseLookMapping,
+    radii: { x: number; y: number },
+  ): Promise<void> {
+    const existing = this.#lookPumps.get(mapping.id);
+    if (existing) return existing;
+
+    const generation = this.#lookGeneration;
+    let pumpPromise: Promise<void> | undefined;
+    const runPump = async () => {
+      try {
+        while (
+          generation === this.#lookGeneration &&
+          this.#enabled &&
+          this.#pointerLockActive
+        ) {
+          const pending = this.#pendingLookDeltas.get(mapping.id);
           if (
-            generation !== this.#lookGeneration ||
-            !this.#enabled ||
-            !this.#pointerLockActive
+            !pending ||
+            (Math.abs(pending.dx) < 1e-9 && Math.abs(pending.dy) < 1e-9)
           ) {
-            return;
+            break;
           }
+          const delta = { x: pending.dx, y: pending.dy };
+          pending.dx = 0;
+          pending.dy = 0;
+
           const current =
             this.#lookPositions.get(mapping.id) ?? mapping.position;
           await this.#moveMouseLook(
             mapping.id,
             mapping.position,
             current,
-            { x: dx, y: dy },
+            delta,
             radii,
             generation,
           );
-        });
-      this.#lookChains.set(mapping.id, movement);
-      void movement
-        .finally(() => {
-          if (this.#lookChains.get(mapping.id) === movement) {
-            this.#lookChains.delete(mapping.id);
-          }
-        })
-        .catch(() => {});
-      movements.push(movement);
-    }
-    await Promise.all(movements);
-    return consumed;
+        }
+      } finally {
+        if (this.#lookPumps.get(mapping.id) === pumpPromise) {
+          this.#lookPumps.delete(mapping.id);
+        }
+      }
+    };
+    pumpPromise = runPump();
+    this.#lookPumps.set(mapping.id, pumpPromise);
+    return pumpPromise;
   }
 
   async releaseAll(): Promise<void> {
@@ -401,9 +430,10 @@ export class MappingEngine {
     this.#joysticks.clear();
     for (const id of this.#mouseTapTimers.values()) this.#scheduler.clearTimeout(id);
     this.#mouseTapTimers.clear();
-    const lookChains = [...this.#lookChains.values()];
-    await Promise.allSettled(lookChains);
-    this.#lookChains.clear();
+    const lookPumps = [...this.#lookPumps.values()];
+    await Promise.allSettled(lookPumps);
+    this.#lookPumps.clear();
+    this.#pendingLookDeltas.clear();
     this.#lookPositions.clear();
     this.#keyboard.clear();
     if (resetPointerLock) this.#pointerLockActive = false;

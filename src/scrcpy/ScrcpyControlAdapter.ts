@@ -108,9 +108,7 @@ export class ScrcpyControlAdapter implements SyntheticTouchSink {
     if (this.mouseMode !== "uhid" || !this.#uhidMouse) {
       return Promise.resolve();
     }
-    return this.#enqueue("uhid-mouse-move", () =>
-      this.#uhidMouse!.move(deltaX, deltaY),
-    );
+    return this.#uhidMouse.move(deltaX, deltaY);
   }
 
   mouseButton(
@@ -121,9 +119,7 @@ export class ScrcpyControlAdapter implements SyntheticTouchSink {
   ): Promise<void> {
     void browserButtons;
     if (this.mouseMode === "uhid" && this.#uhidMouse) {
-      return this.#enqueue("uhid-mouse-button", async () => {
-        await this.#uhidMouse!.button(button, pressed);
-      });
+      return this.#uhidMouse.button(button, pressed).then(() => {});
     }
     if (this.mouseMode !== "sdk") return Promise.resolve();
     if (domButtonMask(button) === 0) return Promise.resolve();
@@ -146,9 +142,7 @@ export class ScrcpyControlAdapter implements SyntheticTouchSink {
 
   releaseMouseButtons(): Promise<void> {
     if (this.mouseMode === "uhid" && this.#uhidMouse) {
-      return this.#enqueue("uhid-mouse-release", () =>
-        this.#uhidMouse!.releaseButtons(),
-      );
+      return this.#uhidMouse.releaseButtons();
     }
     if (this.mouseMode !== "sdk" || this.#sdkPressedButtons.size === 0) {
       return Promise.resolve();
@@ -202,9 +196,7 @@ export class ScrcpyControlAdapter implements SyntheticTouchSink {
   ): Promise<void> {
     void browserButtons;
     if (this.mouseMode === "uhid" && this.#uhidMouse) {
-      return this.#enqueue("uhid-mouse-scroll", () =>
-        this.#uhidMouse!.scroll(scrollX, scrollY),
-      );
+      return this.#uhidMouse.scroll(scrollX, scrollY);
     }
     if (this.mouseMode !== "sdk") return Promise.resolve();
     this.#sdkPointer = point;
@@ -261,6 +253,7 @@ export class ScrcpyControlAdapter implements SyntheticTouchSink {
 
   async flush(): Promise<void> {
     await this.#chain;
+    await this.#uhidMouse?.flush();
   }
 
   async close(): Promise<void> {
@@ -273,7 +266,7 @@ export class ScrcpyControlAdapter implements SyntheticTouchSink {
     this.#uhidMouse = undefined;
     if (mouse) {
       try {
-        await this.#enqueue("uhid-mouse-destroy", () => mouse.close());
+        await mouse.close();
       } catch {
         // The control socket may already be closed during disconnect cleanup.
       }

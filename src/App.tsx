@@ -399,7 +399,12 @@ export default function App() {
     try {
       if (qualityRef.current.mouse.rawInput) {
         try {
-          await surface.requestPointerLock({ unadjustedMovement: true });
+          const rawLock = surface.requestPointerLock({
+            unadjustedMovement: true,
+          } as PointerLockOptions);
+          if (rawLock && typeof (rawLock as Promise<void>).then === "function") {
+            await rawLock;
+          }
           diagnostics.info(
             "control",
             "raw-pointer-lock",
@@ -415,7 +420,13 @@ export default function App() {
           );
         }
       }
-      await surface.requestPointerLock();
+      const standardLock = surface.requestPointerLock();
+      if (
+        standardLock &&
+        typeof (standardLock as Promise<void>).then === "function"
+      ) {
+        await standardLock;
+      }
     } catch (error) {
       setCameraLockActive(false);
       diagnostics.warn(
@@ -775,31 +786,79 @@ export default function App() {
       void engineRef.current?.setPointerLockActive(active);
       if (!active) void session.control?.releaseMouseButtons();
     };
-    const onMouseMove = (event: MouseEvent) => {
+
+    const onPointerLockError = (event: Event) => {
+      pointerLockRequestRef.current = false;
+      setPointerLocked(false);
+      setCameraLockActive(false);
+      void engineRef.current?.setPointerLockActive(false);
+      void session.control?.releaseMouseButtons();
+      diagnostics.warn(
+        "control",
+        "pointer-lock-error",
+        "The browser reported a Pointer Lock error.",
+        event,
+      );
+    };
+
+    const onPointerMove = (event: Event) => {
       if (document.pointerLockElement !== surfaceRef.current) return;
       const surface = surfaceRef.current;
       if (!surface) return;
+
+      const mouseEvent = event as MouseEvent;
+      let deltaX = 0;
+      let deltaY = 0;
+
+      if (
+        "getCoalescedEvents" in event &&
+        typeof (event as PointerEvent).getCoalescedEvents === "function"
+      ) {
+        const coalesced = (event as PointerEvent).getCoalescedEvents();
+        if (coalesced && coalesced.length > 0) {
+          for (let i = 0; i < coalesced.length; i++) {
+            deltaX += coalesced[i]!.movementX;
+            deltaY += coalesced[i]!.movementY;
+          }
+        } else {
+          deltaX = mouseEvent.movementX;
+          deltaY = mouseEvent.movementY;
+        }
+      } else {
+        deltaX = mouseEvent.movementX;
+        deltaY = mouseEvent.movementY;
+      }
+
+      if (deltaX === 0 && deltaY === 0) return;
+
       if (controlMode === "play" && hasMouseLook && cameraLockActive) {
         void engineRef.current?.handleMouseMove(
-          event.movementX,
-          event.movementY,
+          deltaX,
+          deltaY,
           surface.clientWidth,
           surface.clientHeight,
         );
       } else {
         void session.control?.mouseMoveRelative(
-          event.movementX,
-          event.movementY,
+          deltaX,
+          deltaY,
         );
       }
     };
+
+    const moveEvent = typeof window !== "undefined" && "PointerEvent" in window
+      ? "pointermove"
+      : "mousemove";
+
     document.addEventListener("pointerlockchange", onPointerLockChange);
-    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("pointerlockerror", onPointerLockError);
+    document.addEventListener(moveEvent, onPointerMove);
     return () => {
       document.removeEventListener("pointerlockchange", onPointerLockChange);
-      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("pointerlockerror", onPointerLockError);
+      document.removeEventListener(moveEvent, onPointerMove);
     };
-  }, [cameraLockActive, controlMode, hasMouseLook, session]);
+  }, [cameraLockActive, controlMode, diagnostics, hasMouseLook, session]);
 
   useEffect(() => {
     const ownsKeyboardFocus = () => {

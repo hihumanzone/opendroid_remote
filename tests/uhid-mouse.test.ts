@@ -140,4 +140,43 @@ describe("Android UHID physical mouse", () => {
     expect(uHidDestroy).toHaveBeenCalledWith(UHID_MOUSE_ID);
     expect(injectTouch).not.toHaveBeenCalled();
   });
+
+  it("coalesces high-frequency mouse movements while writes are in flight without backlog", async () => {
+    let unblockFirstWrite = () => {};
+    let firstWriteBlocked = true;
+    const reports: number[][] = [];
+    const transport: UhidMouseTransport = {
+      async create() {},
+      async input(id, report) {
+        expect(id).toBe(UHID_MOUSE_ID);
+        reports.push([...report]);
+        if (firstWriteBlocked) {
+          firstWriteBlocked = false;
+          await new Promise<void>((resolve) => {
+            unblockFirstWrite = resolve;
+          });
+        }
+      },
+      async destroy() {},
+    };
+    const mouse = new UhidMouseDevice(transport, 1);
+    await mouse.open();
+
+    // First move starts write and is blocked
+    const move1 = mouse.move(5, 5);
+    // Concurrent moves arrive while first write is in flight
+    const move2 = mouse.move(10, -5);
+    const move3 = mouse.move(2, 3);
+
+    // Unblock the first write
+    unblockFirstWrite();
+    await Promise.all([move1, move2, move3]);
+    await mouse.flush();
+
+    // First report had (5, 5). Second report has the combined delta (12, -2).
+    expect(reports).toEqual([
+      [0, 5, 5, 0, 0],
+      [0, 12, 254, 0, 0],
+    ]);
+  });
 });
