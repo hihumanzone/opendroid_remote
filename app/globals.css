@@ -412,10 +412,24 @@ a:hover {
   color: var(--accent);
 }
 
+.game-button:hover:not(:disabled) {
+  background: hsla(var(--hue-accent), var(--sat-accent), var(--light-accent), 0.22);
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
 .game-button.active {
   background: var(--accent);
+  border-color: var(--accent);
   color: var(--accent-ink);
   font-weight: 750;
+  box-shadow: var(--shadow-accent);
+}
+
+.game-button.active:hover:not(:disabled) {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: var(--accent-ink);
   box-shadow: var(--shadow-accent);
 }
 
