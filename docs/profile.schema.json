@@ -305,6 +305,7 @@
         },
         "invertX": { "type": "boolean" },
         "invertY": { "type": "boolean" },
+        "toggleTrigger": { "$ref": "#/$defs/keyTrigger" },
         "enableTrigger": { "$ref": "#/$defs/keyTrigger" },
         "disableTrigger": { "$ref": "#/$defs/keyTrigger" }
       }

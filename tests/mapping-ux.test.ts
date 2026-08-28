@@ -53,27 +53,24 @@ describe("Mapping UX & Control Enhancements", () => {
     });
   });
 
-  describe("2. Camera lock enable/disable triggers and defaults", () => {
-    it("creates mouse-look mapping with default enable and disable triggers", () => {
+  describe("2. Camera lock toggle trigger and defaults", () => {
+    it("creates mouse-look mapping with default toggle trigger", () => {
       const look = createMapping("mouse-look");
       expect(look.type).toBe("mouse-look");
-      expect(look.enableTrigger).toEqual({ kind: "key", code: "KeyY" });
-      expect(look.disableTrigger).toEqual({ kind: "key", code: "Escape" });
+      expect(look.toggleTrigger).toEqual({ kind: "key", code: "KeyY" });
       expect(isGameMapping(look)).toBe(true);
     });
 
-    it("registers camera lock enable and disable trigger keys in mapped keyboard codes", () => {
+    it("registers camera lock toggle trigger key in mapped keyboard codes", () => {
       const profile = createProfile("Camera Lock Test");
       const look: MouseLookMapping = {
         ...createMapping("mouse-look"),
-        enableTrigger: { kind: "key", code: "KeyT" },
-        disableTrigger: { kind: "key", code: "KeyG" },
+        toggleTrigger: { kind: "key", code: "KeyT" },
       };
       profile.mappings = [look];
 
       const mapped = mappedKeyboardCodes(profile, "landscape");
       expect(mapped.has("KeyT")).toBe(true);
-      expect(mapped.has("KeyG")).toBe(true);
       expect(mapped.has("Escape")).toBe(true); // emergencyCode default
     });
 
@@ -89,12 +86,11 @@ describe("Mapping UX & Control Enhancements", () => {
       expect(routeKeyboardInput("edit", "KeyY", mapped)).toBe("block-editor");
     });
 
-    it("serializes and round-trips mouse-look mappings with custom triggers", () => {
+    it("serializes and round-trips mouse-look mappings with custom toggle trigger", () => {
       const profile = createProfile("Shooter Profile");
       const look: MouseLookMapping = {
         ...createMapping("mouse-look"),
-        enableTrigger: { kind: "key", code: "Backquote" },
-        disableTrigger: { kind: "key", code: "Tab" },
+        toggleTrigger: { kind: "key", code: "Backquote" },
       };
       profile.mappings = [look];
 
@@ -102,21 +98,25 @@ describe("Mapping UX & Control Enhancements", () => {
       const parsed = parseProfileJson(json);
       expect(isGameProfile(parsed)).toBe(true);
       const parsedLook = parsed.mappings[0] as MouseLookMapping;
-      expect(parsedLook.enableTrigger).toEqual({ kind: "key", code: "Backquote" });
-      expect(parsedLook.disableTrigger).toEqual({ kind: "key", code: "Tab" });
+      expect(parsedLook.toggleTrigger).toEqual({ kind: "key", code: "Backquote" });
     });
 
-    it("supports backward-compatible mouse-look mappings without explicit triggers", () => {
+    it("supports backward-compatible mouse-look mappings with legacy enable/disable triggers or without explicit triggers", () => {
       const profile = createProfile("Legacy Profile");
-      const look = createMapping("mouse-look");
-      delete (look as Partial<MouseLookMapping>).enableTrigger;
-      delete (look as Partial<MouseLookMapping>).disableTrigger;
+      const look: MouseLookMapping = {
+        ...createMapping("mouse-look"),
+        enableTrigger: { kind: "key", code: "KeyT" },
+        disableTrigger: { kind: "key", code: "KeyG" },
+      };
+      delete (look as Partial<MouseLookMapping>).toggleTrigger;
       profile.mappings = [look];
 
       const json = serializeProfile(profile);
       const parsed = parseProfileJson(json);
       expect(isGameProfile(parsed)).toBe(true);
       expect(hasActiveMouseLook(parsed, "landscape")).toBe(true);
+      const mapped = mappedKeyboardCodes(parsed, "landscape");
+      expect(mapped.has("KeyT")).toBe(true);
     });
   });
 

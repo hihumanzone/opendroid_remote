@@ -224,12 +224,10 @@ export default function App() {
       ),
     [profile, streamOrientation],
   );
-  const cameraLockEnableKey =
+  const cameraLockToggleKey =
+    activeMouseLookMapping?.toggleTrigger?.code ??
     activeMouseLookMapping?.enableTrigger?.code ??
     (hasMouseLook ? "KeyY" : undefined);
-  const cameraLockDisableKey =
-    activeMouseLookMapping?.disableTrigger?.code ??
-    (hasMouseLook ? "Escape" : undefined);
   const effectiveMouseMode =
     session.control?.mouseMode ??
     (quality.mouse.mode === "uhid" &&
@@ -937,19 +935,16 @@ export default function App() {
         return;
       }
       if (controlMode === "play" && hasMouseLook) {
-        const isEnable =
-          Boolean(cameraLockEnableKey) && event.code === cameraLockEnableKey;
-        const isDisable =
-          Boolean(cameraLockDisableKey) && event.code === cameraLockDisableKey;
-        if (cameraLockActive && (isDisable || isEnable)) {
+        const isToggle =
+          Boolean(cameraLockToggleKey) && event.code === cameraLockToggleKey;
+        if (isToggle) {
           event.preventDefault();
           event.stopPropagation();
-          void disableCameraLock();
-          return;
-        } else if (!cameraLockActive && isEnable) {
-          event.preventDefault();
-          event.stopPropagation();
-          void enableCameraLock();
+          if (cameraLockActive) {
+            void disableCameraLock();
+          } else {
+            void enableCameraLock();
+          }
           return;
         }
       }
@@ -1020,7 +1015,7 @@ export default function App() {
       if (
         controlMode === "play" &&
         hasMouseLook &&
-        (event.code === cameraLockEnableKey || event.code === cameraLockDisableKey)
+        event.code === cameraLockToggleKey
       ) {
         event.preventDefault();
         event.stopPropagation();
@@ -1086,8 +1081,7 @@ export default function App() {
   }, [
     busy,
     cameraLockActive,
-    cameraLockDisableKey,
-    cameraLockEnableKey,
+    cameraLockToggleKey,
     controlMode,
     diagnostics,
     disableCameraLock,
@@ -1792,8 +1786,7 @@ export default function App() {
             pointerLocked={pointerLocked}
             hasMouseLook={hasMouseLook}
             cameraLockActive={cameraLockActive}
-            cameraLockEnableKey={cameraLockEnableKey}
-            cameraLockDisableKey={cameraLockDisableKey}
+            cameraLockToggleKey={cameraLockToggleKey}
             overlaysVisible={overlaysVisible}
             onToggleOverlays={() =>
               setOverlaysVisible((value) => !value)

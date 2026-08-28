@@ -367,28 +367,22 @@ export function MappingInspector({
 
       {mapping.type === "mouse-look" ? (
         <>
-          <div className="field-grid two">
-            <KeyCapture
-              label="Enable trigger"
-              code={mapping.enableTrigger?.code ?? "KeyY"}
-              onChange={(code) =>
-                onChange({
-                  ...mapping,
-                  enableTrigger: { kind: "key", code },
-                })
-              }
-            />
-            <KeyCapture
-              label="Disable trigger"
-              code={mapping.disableTrigger?.code ?? "Escape"}
-              onChange={(code) =>
-                onChange({
-                  ...mapping,
-                  disableTrigger: { kind: "key", code },
-                })
-              }
-            />
-          </div>
+          <KeyCapture
+            label="Toggle trigger"
+            code={
+              mapping.toggleTrigger?.code ??
+              mapping.enableTrigger?.code ??
+              "KeyY"
+            }
+            onChange={(code) =>
+              onChange({
+                ...mapping,
+                toggleTrigger: { kind: "key", code },
+                enableTrigger: undefined,
+                disableTrigger: undefined,
+              })
+            }
+          />
           <div className="field-grid two">
             <NumberField
               label="Sensitivity"

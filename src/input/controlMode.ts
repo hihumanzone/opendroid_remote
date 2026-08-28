@@ -66,7 +66,8 @@ export function mappedKeyboardCodes(
     } else if (mapping.type === "joystick") {
       for (const code of Object.values(mapping.keys)) codes.add(code);
     } else if (mapping.type === "mouse-look") {
-      if (mapping.enableTrigger) codes.add(mapping.enableTrigger.code);
+      if (mapping.toggleTrigger) codes.add(mapping.toggleTrigger.code);
+      else if (mapping.enableTrigger) codes.add(mapping.enableTrigger.code);
       if (mapping.disableTrigger) codes.add(mapping.disableTrigger.code);
     }
   }

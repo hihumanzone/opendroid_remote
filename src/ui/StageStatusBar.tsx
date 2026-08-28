@@ -15,8 +15,7 @@ export interface StageStatusBarProps {
   pointerLocked: boolean;
   hasMouseLook?: boolean;
   cameraLockActive?: boolean;
-  cameraLockEnableKey?: string;
-  cameraLockDisableKey?: string;
+  cameraLockToggleKey?: string;
   overlaysVisible: boolean;
   onToggleOverlays(): void;
   onToggleCameraLock?(): void;
@@ -49,8 +48,7 @@ export function StageStatusBar({
   pointerLocked,
   hasMouseLook = false,
   cameraLockActive = false,
-  cameraLockEnableKey,
-  cameraLockDisableKey,
+  cameraLockToggleKey,
   overlaysVisible,
   onToggleOverlays,
   onToggleCameraLock,
@@ -82,7 +80,7 @@ export function StageStatusBar({
             className={`button subtle ${cameraLockActive ? "game-button active" : ""}`}
             onClick={onToggleCameraLock}
             aria-pressed={cameraLockActive}
-            title={`Camera Lock: ${cameraLockActive ? "Active" : "Disabled"}. Press ${cameraLockEnableKey?.replace(/^Key/, "") ?? "Y"} to lock, ${cameraLockDisableKey?.replace(/^Key/, "") ?? "Esc"} to unlock`}
+            title={`Camera Lock: ${cameraLockActive ? "Active" : "Disabled"}. Press ${cameraLockToggleKey?.replace(/^Key/, "") ?? "Y"} to toggle`}
           >
             Camera Lock: {cameraLockActive ? "Active" : "Off"}
           </button>

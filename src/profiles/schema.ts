@@ -64,7 +64,10 @@ export interface MouseLookMapping extends MappingBase {
   radius: number;
   invertX: boolean;
   invertY: boolean;
+  toggleTrigger?: KeyTrigger;
+  /** @deprecated Use toggleTrigger instead */
   enableTrigger?: KeyTrigger;
+  /** @deprecated Use toggleTrigger instead */
   disableTrigger?: KeyTrigger;
 }
 
@@ -224,6 +227,7 @@ export function isGameMapping(value: unknown): value is GameMapping {
         value.radius <= 1 &&
         typeof value.invertX === "boolean" &&
         typeof value.invertY === "boolean" &&
+        (value.toggleTrigger === undefined || isKeyTrigger(value.toggleTrigger)) &&
         (value.enableTrigger === undefined || isKeyTrigger(value.enableTrigger)) &&
         (value.disableTrigger === undefined || isKeyTrigger(value.disableTrigger))
       );
@@ -406,8 +410,7 @@ export function createMapping(
         radius: 0.2,
         invertX: false,
         invertY: false,
-        enableTrigger: { kind: "key", code: "KeyY" },
-        disableTrigger: { kind: "key", code: "Escape" },
+        toggleTrigger: { kind: "key", code: "KeyY" },
       };
   }
 }
