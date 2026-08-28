@@ -95,13 +95,28 @@ export class ScrcpyControlAdapter implements SyntheticTouchSink {
   }
 
   mouseMove(point: NormalizedPoint, browserButtons = 0): Promise<void> {
-    void browserButtons;
     if (this.mouseMode !== "sdk") return Promise.resolve();
     this.#sdkPointer = point;
-    const buttons = this.#sdkButtonMask();
-    return this.#enqueue("sdk-mouse-move", () =>
-      this.#injectMouseMotion(point, buttons),
+    const staleButtons = [...this.#sdkPressedButtons].filter(
+      (button) => (browserButtons & domButtonMask(button)) === 0,
     );
+    for (const button of staleButtons) {
+      this.#sdkPressedButtons.delete(button);
+    }
+    const buttons = this.#sdkButtonMask();
+    return this.#enqueue("sdk-mouse-move", async () => {
+      if (staleButtons.length > 0) {
+        let currentMask = buttons;
+        for (const button of staleButtons) {
+          currentMask |= domButtonMask(button);
+        }
+        for (const button of staleButtons.reverse()) {
+          currentMask &= ~domButtonMask(button);
+          await this.#injectMouseButton(point, button, false, currentMask);
+        }
+      }
+      await this.#injectMouseMotion(point, buttons);
+    });
   }
 
   mouseMoveRelative(deltaX: number, deltaY: number): Promise<void> {

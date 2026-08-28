@@ -222,6 +222,11 @@ export function VideoStage({
     videoWidth,
   ]);
 
+  const releaseCapturedMappings = () => {
+    for (const button of capturedMouse.current) onGameMouseUp(button);
+    capturedMouse.current.clear();
+  };
+
   useEffect(() => {
     if (!editing && streaming) return;
     for (const [pointerId, pointer] of active.current) {
@@ -235,10 +240,7 @@ export function VideoStage({
       pointers.current.release(`direct:${pointerId}`);
     }
     active.current.clear();
-    for (const button of capturedMouse.current) {
-      onGameMouseUp(button);
-    }
-    capturedMouse.current.clear();
+    releaseCapturedMappings();
     onReleaseMouseButtons();
   }, [
     editing,
@@ -250,12 +252,48 @@ export function VideoStage({
 
   useEffect(() => {
     if (!pointerLocked) {
-      for (const button of capturedMouse.current) {
-        onGameMouseUp(button);
-      }
-      capturedMouse.current.clear();
+      releaseCapturedMappings();
     }
-  }, [onGameMouseUp, pointerLocked]);
+
+    const handleWindowPointerUp = (event: Event) => {
+      const pointerEvent = event as PointerEvent;
+      if (
+        !("pointerType" in pointerEvent) ||
+        pointerEvent.pointerType === "mouse"
+      ) {
+        const mouseEvent = event as MouseEvent;
+        if (capturedMouse.current.delete(mouseEvent.button)) {
+          onGameMouseUp(mouseEvent.button);
+        }
+        if (mouseEvent.buttons === 0) {
+          releaseCapturedMappings();
+          if (!pointerLocked) {
+            onReleaseMouseButtons();
+          }
+        }
+      }
+    };
+
+    const handleWindowBlur = () => {
+      releaseCapturedMappings();
+      if (!pointerLocked) {
+        onReleaseMouseButtons();
+      }
+    };
+
+    const upEvent =
+      typeof window !== "undefined" && "PointerEvent" in window
+        ? "pointerup"
+        : "mouseup";
+
+    window.addEventListener(upEvent, handleWindowPointerUp);
+    window.addEventListener("blur", handleWindowBlur);
+
+    return () => {
+      window.removeEventListener(upEvent, handleWindowPointerUp);
+      window.removeEventListener("blur", handleWindowBlur);
+    };
+  }, [onGameMouseUp, onReleaseMouseButtons, pointerLocked]);
 
   const pointFor = (
     event: ReactPointerEvent<HTMLDivElement>,
@@ -301,6 +339,11 @@ export function VideoStage({
     if (!streaming || editing) return;
     event.preventDefault();
     if (event.pointerType === "mouse") {
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {
+        // Pointer capture may fail in synthetic environments or if pointer is invalid.
+      }
       if (
         shouldCaptureMouseButton(
           mode,
@@ -342,7 +385,11 @@ export function VideoStage({
     const id = pointers.current.allocate(`direct:${event.pointerId}`);
     const buttons = PRIMARY_TOUCH_BUTTON;
     active.current.set(event.pointerId, { id, point, buttons });
-    event.currentTarget.setPointerCapture(event.pointerId);
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Synthetic environments or invalid pointer ID
+    }
     onDirectTouch(
       "down",
       id,
@@ -369,7 +416,8 @@ export function VideoStage({
         return;
       }
       if (mouseMode === "disabled") return;
-      const point = pointFor(event, false);
+      const isDragging = event.buttons !== 0 || capturedMouse.current.size > 0;
+      const point = pointFor(event, isDragging);
       if (!point) return;
       onMouseMove(point, event.buttons);
       return;
@@ -388,11 +436,6 @@ export function VideoStage({
       pointer.buttons,
       PRIMARY_TOUCH_BUTTON,
     );
-  };
-
-  const releaseCapturedMappings = () => {
-    for (const button of capturedMouse.current) onGameMouseUp(button);
-    capturedMouse.current.clear();
   };
 
   return (
@@ -429,6 +472,13 @@ export function VideoStage({
             onPointerMove={handlePointerMove}
             onPointerUp={(event) => {
               if (event.pointerType === "mouse") {
+                try {
+                  if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                    event.currentTarget.releasePointerCapture(event.pointerId);
+                  }
+                } catch {
+                  // Ignore errors releasing capture
+                }
                 if (capturedMouse.current.delete(event.button)) {
                   onGameMouseUp(event.button);
                   return;

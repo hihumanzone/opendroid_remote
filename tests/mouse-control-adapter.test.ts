@@ -122,4 +122,57 @@ describe("Android SDK mouse compatibility path", () => {
     await adapter.releaseMouseButtons();
     expect(injectTouch).toHaveBeenCalledTimes(5);
   });
+
+  it("automatically releases stuck SDK buttons and reverts to hover when mouseMove reports buttons=0", async () => {
+    const injectTouch = vi.fn<(message: unknown) => Promise<void>>(
+      async () => {},
+    );
+    const controller = {
+      injectTouch,
+      injectScroll: vi.fn(async () => {}),
+    } as unknown as ScrcpyControlMessageWriter;
+    const adapter = new ScrcpyControlAdapter(
+      controller,
+      () => ({ width: 1000, height: 500 }),
+      new Diagnostics(),
+      "sdk",
+    );
+
+    // 1. Click and hold primary button
+    await adapter.mouseButton({ x: 0.5, y: 0.5 }, 0, true, 1);
+    expect(injectTouch).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        action: AndroidMotionEventAction.Down,
+        actionButton: 1,
+        buttons: 1,
+      }),
+    );
+
+    // 2. Drag to scroll
+    await adapter.mouseMove({ x: 0.5, y: 0.3 }, 1);
+    expect(injectTouch).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        action: AndroidMotionEventAction.Move,
+        buttons: 1,
+      }),
+    );
+
+    // 3. User releases button outside and moves cursor back into screen (buttons = 0)
+    await adapter.mouseMove({ x: 0.5, y: 0.4 }, 0);
+
+    const calls = injectTouch.mock.calls.map(([message]) => message);
+    expect(calls.at(-2)).toEqual(
+      expect.objectContaining({
+        action: AndroidMotionEventAction.Up,
+        actionButton: 1,
+        buttons: 0,
+      }),
+    );
+    expect(calls.at(-1)).toEqual(
+      expect.objectContaining({
+        action: AndroidMotionEventAction.HoverMove,
+        buttons: 0,
+      }),
+    );
+  });
 });
