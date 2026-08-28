@@ -184,26 +184,25 @@ export function ProfilePanel({
           <IconCheck size={18} />
           Save current mappings
         </button>
-        <div className="button-row" style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
-          <button type="button" className="button subtle" style={{ flex: 1 }} onClick={onDuplicate}>
+        <div className="button-row">
+          <button type="button" className="button subtle" onClick={onDuplicate}>
             Duplicate
           </button>
-          <button type="button" className="button subtle" style={{ flex: 1 }} onClick={onExport}>
+          <button type="button" className="button subtle" onClick={onExport}>
             <IconDownload size={16} />
             Export JSON
           </button>
         </div>
-        <div className="button-row" style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+        <div className="button-row">
           <button
             type="button"
             className="button subtle"
-            style={{ flex: 1 }}
             onClick={() => inputRef.current?.click()}
           >
             <IconUpload size={16} />
             Import JSON
           </button>
-          <button type="button" className="button danger subtle" style={{ flex: 1 }} onClick={onDelete}>
+          <button type="button" className="button danger subtle" onClick={onDelete}>
             <IconTrash size={16} />
             Delete
           </button>

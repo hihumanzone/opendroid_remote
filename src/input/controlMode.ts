@@ -52,9 +52,10 @@ export function mappedKeyboardCodes(
 ): ReadonlySet<string> {
   const codes = new Set<string>();
   if (!profile) return codes;
-  codes.add(profile.settings.emergencyCode);
+  let hasActiveMapping = false;
   for (const mapping of profile.mappings) {
     if (!activeForOrientation(mapping, orientation)) continue;
+    hasActiveMapping = true;
     if (
       mapping.type === "tap" ||
       mapping.type === "hold" ||
@@ -68,6 +69,9 @@ export function mappedKeyboardCodes(
       if (mapping.enableTrigger) codes.add(mapping.enableTrigger.code);
       if (mapping.disableTrigger) codes.add(mapping.disableTrigger.code);
     }
+  }
+  if (hasActiveMapping && profile.settings.emergencyCode) {
+    codes.add(profile.settings.emergencyCode);
   }
   return codes;
 }

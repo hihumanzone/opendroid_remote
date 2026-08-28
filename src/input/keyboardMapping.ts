@@ -8,11 +8,12 @@ const KEY_CODE_MAP = AndroidKeyCode as unknown as Record<string, number>;
 const ALIASES: Record<string, number> = {
   OSLeft: AndroidKeyCode.MetaLeft,
   OSRight: AndroidKeyCode.MetaRight,
-  Esc: AndroidKeyCode.Escape,
+  Esc: AndroidKeyCode.AndroidBack,
+  Escape: AndroidKeyCode.AndroidBack,
 };
 
 export function domCodeToAndroid(code: string): number | undefined {
-  return KEY_CODE_MAP[code] ?? ALIASES[code];
+  return ALIASES[code] ?? KEY_CODE_MAP[code];
 }
 
 export interface ModifierState {

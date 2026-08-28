@@ -74,4 +74,11 @@ describe("Edit and Play input routing", () => {
       ["Escape", "KeyA", "KeyD", "KeyF", "KeyS"].sort(),
     );
   });
+
+  it("does not hijack emergency key when profile has no active mappings", () => {
+    const profile = createProfile();
+    profile.mappings = [];
+    expect([...mappedKeyboardCodes(profile, "landscape")]).toEqual([]);
+    expect(routeKeyboardInput("play", "Escape", mappedKeyboardCodes(profile, "landscape"))).toBe("android");
+  });
 });

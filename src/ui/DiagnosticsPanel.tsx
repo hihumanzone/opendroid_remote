@@ -99,16 +99,16 @@ export function DiagnosticsPanel({
           </div>
           <span className="count-badge">{entries.length}</span>
         </div>
-        <div className="diagnostic-actions" style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
-          <button type="button" className="button subtle" style={{ flex: 1 }} onClick={onCopy}>
+        <div className="diagnostic-actions">
+          <button type="button" className="button subtle" onClick={onCopy}>
             <IconCopy size={14} />
             Copy
           </button>
-          <button type="button" className="button subtle" style={{ flex: 1 }} onClick={onExport}>
+          <button type="button" className="button subtle" onClick={onExport}>
             <IconDownload size={14} />
             Export
           </button>
-          <button type="button" className="button subtle" style={{ flex: 1 }} onClick={onClear}>
+          <button type="button" className="button subtle" onClick={onClear}>
             <IconTrash size={14} />
             Clear
           </button>

@@ -103,6 +103,7 @@ const INITIAL_BROWSER_CAPABILITIES: BrowserCapabilities = {
   pointerEvents: false,
   pointerLock: false,
   fullscreen: false,
+  keyboardLock: false,
   clipboardRead: false,
   clipboardWrite: false,
   indexedDb: false,
@@ -861,11 +862,74 @@ export default function App() {
   }, [cameraLockActive, controlMode, diagnostics, hasMouseLook, session]);
 
   useEffect(() => {
+    const handleFullscreenChange = async () => {
+      const isFullscreen = Boolean(document.fullscreenElement);
+      if (isFullscreen) {
+        const nav =
+          typeof navigator !== "undefined"
+            ? (navigator as Navigator & {
+                keyboard?: { lock?: (keys?: string[]) => Promise<void> };
+              })
+            : undefined;
+        if (nav && "keyboard" in nav && typeof nav.keyboard?.lock === "function") {
+          try {
+            await nav.keyboard.lock(["Escape"]);
+            diagnostics.info(
+              "browser",
+              "keyboard-lock-active",
+              "Keyboard lock captured Escape for fullscreen.",
+            );
+          } catch (error) {
+            diagnostics.debug(
+              "browser",
+              "keyboard-lock-failed",
+              "Keyboard lock on Escape could not be acquired.",
+              error,
+            );
+          }
+        }
+      } else {
+        const nav =
+          typeof navigator !== "undefined"
+            ? (navigator as Navigator & { keyboard?: { unlock?: () => void } })
+            : undefined;
+        if (nav && "keyboard" in nav && typeof nav.keyboard?.unlock === "function") {
+          try {
+            nav.keyboard.unlock();
+          } catch {}
+        }
+      }
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener(
+        "webkitfullscreenchange",
+        handleFullscreenChange,
+      );
+      const nav =
+        typeof navigator !== "undefined"
+          ? (navigator as Navigator & { keyboard?: { unlock?: () => void } })
+          : undefined;
+      if (nav && "keyboard" in nav && typeof nav.keyboard?.unlock === "function") {
+        try {
+          nav.keyboard.unlock();
+        } catch {}
+      }
+    };
+  }, [diagnostics]);
+
+  useEffect(() => {
     const ownsKeyboardFocus = () => {
       const active = document.activeElement;
       return Boolean(
         surfaceRef.current &&
-          (active === surfaceRef.current || surfaceRef.current.contains(active)),
+          (active === surfaceRef.current ||
+            surfaceRef.current.contains(active) ||
+            document.pointerLockElement === surfaceRef.current ||
+            document.fullscreenElement === fullscreenRef.current),
       );
     };
     const onKeyDown = (event: KeyboardEvent) => {

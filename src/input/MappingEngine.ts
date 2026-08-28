@@ -175,7 +175,10 @@ export class MappingEngine {
   }
 
   async handleKeyDown(code: string, repeated = false): Promise<boolean> {
-    if (code === this.#profile.settings.emergencyCode) {
+    if (
+      code === this.#profile.settings.emergencyCode &&
+      this.#activeMappings().length > 0
+    ) {
       await this.emergencyStop(code);
       return true;
     }

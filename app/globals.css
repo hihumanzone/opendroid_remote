@@ -392,6 +392,25 @@ a:hover {
   width: 100%;
 }
 
+.button.compact {
+  font-size: 11.5px;
+  min-height: 28px;
+  padding: 4px 10px;
+}
+
+.button-row,
+.diagnostic-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.button-row .button,
+.diagnostic-actions .button {
+  flex: 1;
+  min-width: 0;
+}
+
 .icon-button {
   align-items: center;
   display: inline-flex;

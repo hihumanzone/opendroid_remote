@@ -7,6 +7,7 @@ export interface BrowserCapabilities {
   pointerEvents: boolean;
   pointerLock: boolean;
   fullscreen: boolean;
+  keyboardLock: boolean;
   clipboardRead: boolean;
   clipboardWrite: boolean;
   indexedDb: boolean;
@@ -58,6 +59,9 @@ export function detectBrowserCapabilities(): BrowserCapabilities {
       doc && "pointerLockElement" in doc && "requestPointerLock" in HTMLElement.prototype,
     ),
     fullscreen: Boolean(doc && "fullscreenEnabled" in doc && doc.fullscreenEnabled),
+    keyboardLock: Boolean(
+      nav && "keyboard" in nav && typeof (nav as Navigator & { keyboard?: { lock?: Function } }).keyboard?.lock === "function",
+    ),
     clipboardRead: Boolean(nav?.clipboard?.readText),
     clipboardWrite: Boolean(nav?.clipboard?.writeText),
     indexedDb: typeof indexedDB !== "undefined",
@@ -132,6 +136,14 @@ export function capabilityChecks(
       required: false,
       supported: capabilities.fullscreen,
       detail: "Enables distraction-free play.",
+    },
+    {
+      id: "keyboardLock",
+      label: "Keyboard Lock",
+      required: false,
+      supported: capabilities.keyboardLock,
+      detail:
+        "Retains pointer lock and captures the Escape key during fullscreen.",
     },
     {
       id: "clipboardRead",

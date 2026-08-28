@@ -1,12 +1,52 @@
 import { describe, expect, it } from "vitest";
+import { AndroidKeyCode } from "@yume-chan/scrcpy";
 
 import { KeyboardState } from "../src/input/KeyboardState";
 import { PointerIdAllocator } from "../src/input/PointerIdAllocator";
+import { domCodeToAndroid } from "../src/input/keyboardMapping";
+import { capabilityChecks } from "../src/capabilities/browserCapabilities";
 import {
   joystickPoint,
   joystickVector,
   smoothVector,
 } from "../src/input/joystick";
+
+describe("keyboard mapping", () => {
+  it("maps Escape and Esc DOM codes to Android Back keycode", () => {
+    expect(domCodeToAndroid("Escape")).toBe(AndroidKeyCode.AndroidBack);
+    expect(domCodeToAndroid("Esc")).toBe(AndroidKeyCode.AndroidBack);
+  });
+
+  it("maps standard keys and meta aliases correctly", () => {
+    expect(domCodeToAndroid("KeyA")).toBe(AndroidKeyCode.KeyA);
+    expect(domCodeToAndroid("OSLeft")).toBe(AndroidKeyCode.MetaLeft);
+    expect(domCodeToAndroid("OSRight")).toBe(AndroidKeyCode.MetaRight);
+  });
+});
+
+describe("browser capability checks", () => {
+  it("includes keyboardLock check in capability list", () => {
+    const checks = capabilityChecks({
+      secureContext: true,
+      webUsb: true,
+      webCodecs: true,
+      webAudio: true,
+      webGl: true,
+      pointerEvents: true,
+      pointerLock: true,
+      fullscreen: true,
+      keyboardLock: true,
+      clipboardRead: true,
+      clipboardWrite: true,
+      indexedDb: true,
+      cryptoSubtle: true,
+    });
+    const lockCheck = checks.find((c) => c.id === "keyboardLock");
+    expect(lockCheck).toBeDefined();
+    expect(lockCheck?.supported).toBe(true);
+    expect(lockCheck?.required).toBe(false);
+  });
+});
 
 describe("keyboard state", () => {
   it("distinguishes first press, repeat, release, and reset", () => {
