@@ -12,6 +12,7 @@ export interface BrowserCapabilities {
   clipboardWrite: boolean;
   indexedDb: boolean;
   cryptoSubtle: boolean;
+  serviceWorker?: boolean;
 }
 
 export interface CapabilityCheck {
@@ -66,6 +67,7 @@ export function detectBrowserCapabilities(): BrowserCapabilities {
     clipboardWrite: Boolean(nav?.clipboard?.writeText),
     indexedDb: typeof indexedDB !== "undefined",
     cryptoSubtle: Boolean(globalThis.crypto?.subtle),
+    serviceWorker: Boolean(nav && "serviceWorker" in nav),
   };
 }
 
@@ -165,6 +167,13 @@ export function capabilityChecks(
       required: false,
       supported: capabilities.indexedDb,
       detail: "Profile persistence uses localStorage if unavailable.",
+    },
+    {
+      id: "serviceWorker",
+      label: "Service Worker / PWA",
+      required: false,
+      supported: Boolean(capabilities.serviceWorker),
+      detail: "Enables offline application shell and desktop/mobile PWA install.",
     },
   ];
 }

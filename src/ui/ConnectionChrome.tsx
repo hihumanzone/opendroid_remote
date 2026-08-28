@@ -11,6 +11,8 @@ import {
   IconAlert,
   IconClose,
   IconRefresh,
+  IconInstall,
+  IconOffline,
 } from "./icons/UiIcons";
 import { CustomSelect } from "./controls/CustomSelect";
 
@@ -23,6 +25,11 @@ export interface ConnectionChromeProps {
   streaming: boolean;
   busy: boolean;
   mode: ControlMode;
+  canInstall?: boolean;
+  isOffline?: boolean;
+  hasUpdate?: boolean;
+  onInstall?(): void;
+  onApplyUpdate?(): void;
   onSelectDevice(serial: string): void;
   onReconnect(serial: string): void;
   onConnect(): void;
@@ -42,6 +49,11 @@ export function ConnectionChrome({
   streaming,
   busy,
   mode,
+  canInstall = false,
+  isOffline = false,
+  hasUpdate = false,
+  onInstall,
+  onApplyUpdate,
   onSelectDevice,
   onReconnect,
   onConnect,
@@ -98,12 +110,43 @@ export function ConnectionChrome({
             <span className="status-dot" />
             {phaseLabel}
           </span>
+          {isOffline ? (
+            <span
+              className="connection-pill is-offline"
+              title="Offline mode active (cached shell & USB ADB ready)"
+            >
+              <IconOffline size={14} />
+              Offline
+            </span>
+          ) : null}
           <span className="connection-name" title={connectionName}>
             {connectionName}
           </span>
         </div>
 
         <div className="connection-actions">
+          {hasUpdate && onApplyUpdate ? (
+            <button
+              type="button"
+              className="button primary update-button"
+              onClick={onApplyUpdate}
+              title="A new version of OpenDroid Remote is ready. Click to reload."
+            >
+              <IconRefresh size={16} />
+              Update ready
+            </button>
+          ) : null}
+          {canInstall && onInstall ? (
+            <button
+              type="button"
+              className="button subtle install-button"
+              onClick={onInstall}
+              title="Install OpenDroid Remote as a standalone application"
+            >
+              <IconInstall size={16} />
+              Install
+            </button>
+          ) : null}
           {transport.devices.length > 0 ? (
             <div style={{ minWidth: 200, maxWidth: 280 }}>
               <CustomSelect

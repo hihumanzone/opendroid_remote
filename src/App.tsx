@@ -73,6 +73,7 @@ import {
   WorkspaceTabs,
   type WorkspacePanelId,
 } from "./ui/WorkspaceTabs";
+import { usePwa } from "./pwa/usePwa";
 
 const INITIAL_TRANSPORT: AdbTransportSnapshot = {
   phase: "idle",
@@ -108,6 +109,7 @@ const INITIAL_BROWSER_CAPABILITIES: BrowserCapabilities = {
   clipboardWrite: false,
   indexedDb: false,
   cryptoSubtle: false,
+  serviceWorker: false,
 };
 
 function errorText(error: unknown): string {
@@ -136,6 +138,7 @@ function safeFilename(value: string): string {
 }
 
 export default function App() {
+  const pwa = usePwa();
   const [diagnostics] = useState(() => new Diagnostics());
   const [transport] = useState(() => new WebUsbAdbTransport(diagnostics));
   const [session] = useState(() => new ScrcpySession(diagnostics));
@@ -1737,6 +1740,11 @@ export default function App() {
         streaming={streaming}
         busy={busy}
         mode={controlMode}
+        canInstall={pwa.canInstall}
+        isOffline={pwa.isOffline}
+        hasUpdate={pwa.hasUpdate}
+        onInstall={() => void pwa.promptInstall()}
+        onApplyUpdate={() => pwa.applyUpdate()}
         onSelectDevice={chooseDevice}
         onReconnect={(serial) =>
           void runConnection(() => transport.connectAuthorized(serial))

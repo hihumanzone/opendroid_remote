@@ -288,6 +288,12 @@ a:hover {
   box-shadow: 0 0 0 3px hsla(4, 100%, 68%, 0.25);
 }
 
+.connection-pill.is-offline {
+  background: hsla(38, 100%, 50%, 0.12);
+  border-color: hsla(38, 100%, 50%, 0.3);
+  color: #f59e0b;
+}
+
 .connection-name {
   color: var(--ink);
   font-weight: 600;
@@ -351,6 +357,23 @@ a:hover {
   background: var(--accent-strong);
   border-color: var(--accent-strong);
   box-shadow: var(--shadow-accent);
+}
+
+.button.update-button {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 750;
+  animation: pulse-update 2.5s infinite ease-in-out;
+}
+
+@keyframes pulse-update {
+  0%, 100% {
+    box-shadow: 0 0 0 0 hsla(var(--hue-accent), 90%, 66%, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 4px hsla(var(--hue-accent), 90%, 66%, 0.15);
+  }
 }
 
 .button.subtle {
