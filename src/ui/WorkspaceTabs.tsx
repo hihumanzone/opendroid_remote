@@ -41,8 +41,8 @@ function TabButton({
       className={active ? "active" : ""}
       onClick={onClick}
     >
-      <span aria-hidden="true">{icon}</span>
-      <span>{label}</span>
+      <span className="tab-icon" aria-hidden="true">{icon}</span>
+      <span className="tab-label">{label}</span>
       {badge}
     </button>
   );

@@ -829,9 +829,9 @@ a:hover {
   border-radius: var(--radius-sm);
   color: var(--muted);
   display: flex;
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 650;
   gap: 5px;
   justify-content: center;
@@ -840,7 +840,14 @@ a:hover {
   white-space: nowrap;
 }
 
-.panel-tabs button span {
+.panel-tabs button .tab-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.panel-tabs button .tab-label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -934,6 +941,40 @@ a:hover {
   font-size: 11px;
   font-weight: 750;
   padding: 2px 8px;
+}
+
+/* Active Profile Card */
+.active-profile-card {
+  background: var(--surface-1);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.active-profile-card span {
+  font-size: 10.5px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+
+.active-profile-card strong {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.active-profile-card small {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.3;
 }
 
 /* Mapping Types Grid */
@@ -1037,6 +1078,71 @@ a:hover {
 
 .mini-dot.ok {
   background: var(--accent);
+}
+
+/* Inspector Form Layout & Controls */
+.inspector {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.inspector-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-bottom: 2px;
+}
+
+.inspector-heading > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.inspector-heading strong {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inspector .button.danger {
+  margin-top: var(--space-2);
+  width: 100%;
+}
+
+.empty-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--space-6) var(--space-4);
+  gap: var(--space-2);
+  color: var(--muted);
+  border: 1px dashed var(--line-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.empty-panel.compact {
+  padding: var(--space-5) var(--space-3);
+}
+
+.empty-icon {
+  font-size: 24px;
+  color: var(--faint);
+}
+
+.empty-panel p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.4;
 }
 
 /* Form Control Fields */
