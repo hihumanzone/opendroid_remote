@@ -934,6 +934,32 @@ export default function App() {
       if (!streaming || busy || isEditableTarget(event.target)) {
         return;
       }
+      if (event.code === "Escape" || event.code === "Esc") {
+        event.preventDefault();
+        event.stopPropagation();
+        if (cameraLockActive) {
+          void disableCameraLock();
+        }
+        const androidCode = domCodeToAndroid(event.code);
+        const control = session.control;
+        if (control && androidCode !== undefined) {
+          const metaState = androidMetaState(event);
+          directKeysRef.current.press({
+            domCode: event.code,
+            androidCode,
+            metaState,
+          });
+          void control
+            .key({
+              code: androidCode,
+              action: "down",
+              repeat: event.repeat ? 1 : 0,
+              metaState,
+            })
+            .catch(() => {});
+        }
+        return;
+      }
       if (controlMode === "play" && hasMouseLook) {
         const isToggle =
           Boolean(cameraLockToggleKey) && event.code === cameraLockToggleKey;
@@ -1012,6 +1038,20 @@ export default function App() {
       const capturedMapping =
         capturedMappingKeysRef.current.delete(event.code);
       const directKey = directKeysRef.current.release(event.code);
+      if (event.code === "Escape" || event.code === "Esc") {
+        event.preventDefault();
+        event.stopPropagation();
+        if (directKey) {
+          void session.control
+            ?.key({
+              code: directKey.androidCode,
+              action: "up",
+              metaState: directKey.metaState,
+            })
+            .catch(() => {});
+        }
+        return;
+      }
       if (
         controlMode === "play" &&
         hasMouseLook &&

@@ -71,7 +71,7 @@ describe("Edit and Play input routing", () => {
     profile.mappings = [tap, portrait, joystick];
 
     expect([...mappedKeyboardCodes(profile, "landscape")].sort()).toEqual(
-      ["Escape", "KeyA", "KeyD", "KeyF", "KeyS"].sort(),
+      ["F1", "KeyA", "KeyD", "KeyF", "KeyS"].sort(),
     );
   });
 

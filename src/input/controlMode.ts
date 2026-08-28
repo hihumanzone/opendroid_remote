@@ -71,7 +71,12 @@ export function mappedKeyboardCodes(
       if (mapping.disableTrigger) codes.add(mapping.disableTrigger.code);
     }
   }
-  if (hasActiveMapping && profile.settings.emergencyCode) {
+  if (
+    hasActiveMapping &&
+    profile.settings.emergencyCode &&
+    profile.settings.emergencyCode !== "Escape" &&
+    profile.settings.emergencyCode !== "Esc"
+  ) {
     codes.add(profile.settings.emergencyCode);
   }
   return codes;

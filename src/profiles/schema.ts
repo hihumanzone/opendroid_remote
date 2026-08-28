@@ -334,7 +334,7 @@ export function createProfile(name = "New game profile"): GameProfile {
     updatedAt: now,
     reference: { orientation: "any" },
     settings: {
-      emergencyCode: "Escape",
+      emergencyCode: "F1",
       exclusiveInput: false,
       overlayOpacity: 0.88,
       mouseSensitivity: 0.0015,

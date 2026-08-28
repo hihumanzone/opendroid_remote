@@ -71,7 +71,7 @@ describe("Mapping UX & Control Enhancements", () => {
 
       const mapped = mappedKeyboardCodes(profile, "landscape");
       expect(mapped.has("KeyT")).toBe(true);
-      expect(mapped.has("Escape")).toBe(true); // emergencyCode default
+      expect(mapped.has("F1")).toBe(true); // emergencyCode default
     });
 
     it("routes unmapped keys to Android and camera lock triggers to mapping in play mode", () => {
@@ -81,7 +81,7 @@ describe("Mapping UX & Control Enhancements", () => {
       const mapped = mappedKeyboardCodes(profile, "landscape");
 
       expect(routeKeyboardInput("play", "KeyY", mapped)).toBe("mapping");
-      expect(routeKeyboardInput("play", "Escape", mapped)).toBe("mapping");
+      expect(routeKeyboardInput("play", "Escape", mapped)).toBe("android");
       expect(routeKeyboardInput("play", "KeyA", mapped)).toBe("android");
       expect(routeKeyboardInput("edit", "KeyY", mapped)).toBe("block-editor");
     });

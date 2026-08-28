@@ -319,7 +319,9 @@ describe("mapping execution", () => {
     await engine.handleKeyDown("KeyF");
     await engine.handleMouseDown(0);
     expect(engine.activeTouchCount).toBe(2);
-    expect(await engine.handleKeyDown("Escape")).toBe(true);
+    expect(await engine.handleKeyDown("Escape")).toBe(false);
+    expect(engine.enabled).toBe(true);
+    expect(await engine.handleKeyDown("F1")).toBe(true);
     expect(engine.enabled).toBe(false);
     expect(engine.activeTouchCount).toBe(0);
     expect(events.slice(-2).every((event) => event.phase === "up")).toBe(true);
