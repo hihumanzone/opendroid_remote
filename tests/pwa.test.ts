@@ -42,6 +42,47 @@ describe("PWA Manifest", () => {
     const maskable = content.icons.find((i: { purpose?: string }) => i.purpose === "maskable");
     expect(maskable).toBeDefined();
   });
+
+  it("declares window-controls-overlay in display_override for seamless titlebar integration", () => {
+    const content = JSON.parse(readFileSync(manifestPath, "utf8"));
+    expect(Array.isArray(content.display_override)).toBe(true);
+    expect(content.display_override).toContain("window-controls-overlay");
+  });
+});
+
+describe("Window Controls Overlay & Title Bar Layout", () => {
+  const rootDir = resolve(__dirname, "..");
+  const cssPath = resolve(rootDir, "app/globals.css");
+
+  it("globals.css defines WCO and safe area geometry variables on :root", () => {
+    const css = readFileSync(cssPath, "utf8");
+    expect(css).toContain("--titlebar-left");
+    expect(css).toContain("--titlebar-right");
+    expect(css).toContain("--titlebar-top");
+    expect(css).toContain("--titlebar-height");
+    expect(css).toContain("--wco-right");
+    expect(css).toContain("--wco-left");
+  });
+
+  it("globals.css styles .topbar with safe insets and draggable window region", () => {
+    const css = readFileSync(cssPath, "utf8");
+    expect(css).toContain("padding-left: max(var(--titlebar-left), var(--wco-left, 0px));");
+    expect(css).toContain("padding-right: max(var(--titlebar-right), var(--wco-right, 0px));");
+    expect(css).toContain("app-region: drag;");
+  });
+
+  it("globals.css marks interactive elements inside .topbar as no-drag", () => {
+    const css = readFileSync(cssPath, "utf8");
+    expect(css).toContain("app-region: no-drag;");
+    expect(css).toContain(".topbar button");
+    expect(css).toContain(".topbar a");
+    expect(css).toContain(".topbar .custom-select-container");
+  });
+
+  it("globals.css defines display-mode: window-controls-overlay media query", () => {
+    const css = readFileSync(cssPath, "utf8");
+    expect(css).toContain("@media (display-mode: window-controls-overlay)");
+  });
 });
 
 describe("Service Worker", () => {

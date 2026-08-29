@@ -17,6 +17,7 @@ export interface PwaState {
   isInstalled: boolean;
   isOffline: boolean;
   hasUpdate: boolean;
+  isWcoVisible: boolean;
   promptInstall: () => Promise<boolean>;
   applyUpdate: () => void;
   checkForUpdates: () => Promise<boolean>;
@@ -28,6 +29,7 @@ export function usePwa(): PwaState {
   const [isInstalled, setIsInstalled] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
   const [hasUpdate, setHasUpdate] = useState(false);
+  const [isWcoVisible, setIsWcoVisible] = useState(false);
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(
     null,
   );
@@ -36,11 +38,63 @@ export function usePwa(): PwaState {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // Check if running in standalone PWA mode
+    // Check if running in standalone or window-controls-overlay PWA mode
     const isStandalone =
       window.matchMedia("(display-mode: standalone)").matches ||
+      window.matchMedia("(display-mode: window-controls-overlay)").matches ||
       Boolean((navigator as unknown as { standalone?: boolean }).standalone);
     setIsInstalled(isStandalone);
+
+    // Sync Window Controls Overlay geometry and CSS custom variables
+    const syncWco = () => {
+      if (typeof window === "undefined" || typeof document === "undefined") return;
+      const nav = navigator as unknown as {
+        windowControlsOverlay?: {
+          visible: boolean;
+          getTitlebarAreaRect(): DOMRect;
+          addEventListener(type: string, listener: (ev: Event) => void): void;
+          removeEventListener(type: string, listener: (ev: Event) => void): void;
+        };
+      };
+      const overlay = nav.windowControlsOverlay;
+      const isWco = Boolean(overlay?.visible);
+      setIsWcoVisible(isWco);
+
+      if (overlay && isWco) {
+        const rect = overlay.getTitlebarAreaRect();
+        const right = Math.max(0, window.innerWidth - (rect.x + rect.width));
+        const left = Math.max(0, rect.x);
+        const top = Math.max(0, rect.y);
+        const height = Math.max(0, rect.height);
+        const width = Math.max(0, rect.width);
+
+        document.documentElement.style.setProperty("--wco-visible", "1");
+        document.documentElement.style.setProperty("--wco-right", `${right}px`);
+        document.documentElement.style.setProperty("--wco-left", `${left}px`);
+        document.documentElement.style.setProperty("--wco-top", `${top}px`);
+        document.documentElement.style.setProperty("--wco-height", `${height}px`);
+        document.documentElement.style.setProperty("--wco-width", `${width}px`);
+      } else {
+        document.documentElement.style.setProperty("--wco-visible", "0");
+        document.documentElement.style.setProperty("--wco-right", "0px");
+        document.documentElement.style.setProperty("--wco-left", "0px");
+        document.documentElement.style.setProperty("--wco-top", "0px");
+        document.documentElement.style.setProperty("--wco-height", "0px");
+        document.documentElement.style.setProperty("--wco-width", "100vw");
+      }
+    };
+
+    syncWco();
+
+    const nav = navigator as unknown as {
+      windowControlsOverlay?: {
+        addEventListener(type: string, listener: (ev: Event) => void): void;
+        removeEventListener(type: string, listener: (ev: Event) => void): void;
+      };
+    };
+    const overlay = nav.windowControlsOverlay;
+    overlay?.addEventListener("geometrychange", syncWco);
+    window.addEventListener("resize", syncWco);
 
     // Initial online/offline status
     setIsOffline(!navigator.onLine);
@@ -141,6 +195,8 @@ export function usePwa(): PwaState {
         handleBeforeInstallPrompt as EventListener,
       );
       window.removeEventListener("appinstalled", handleAppInstalled);
+      overlay?.removeEventListener("geometrychange", syncWco);
+      window.removeEventListener("resize", syncWco);
     };
   }, []);
 
@@ -183,6 +239,7 @@ export function usePwa(): PwaState {
     isInstalled,
     isOffline,
     hasUpdate,
+    isWcoVisible,
     promptInstall,
     applyUpdate,
     checkForUpdates,

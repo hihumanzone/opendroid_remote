@@ -1,6 +1,6 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
+# Dependencies & lockfiles
 /node_modules
 /.pnp
 .pnp.*
@@ -9,36 +9,78 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
 
-# testing
+# Testing & coverage
 /coverage
+/.nyc_output
 
-# next.js
+# Next.js, Vite & production build outputs
 /.next/
 /out/
+/dist/
+/dist-static/
+/outputs/
+/work/
 
-# misc
-.DS_Store
-*.pem
+# Cloudflare Wrangler & Sites runtime
+/.wrangler/
+/.sites-runtime/
 
-# debug
+# Platform & hosting metadata
+/.openai/
+/.vercel
+
+# Environment variables & local configuration
+.env
+.env.*
+!.env.example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Debug logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+*.log
 
-# env files (can opt-in for committing if needed)
-.env*
+# Operating system files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
 
-# vercel
-.vercel
+# Editor & IDE settings
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+*.swo
+*~
+*.sublime-workspace
+*.sublime-project
 
-# typescript
+# TypeScript & build cache
 next-env.d.ts
 *.tsbuildinfo
-/dist/
-/dist-static/
-/.wrangler/
-/.sites-runtime/
-/outputs/
-/work/
+
+# Certificates and keys
+*.pem
+*.key
+*.cert
+*.crt

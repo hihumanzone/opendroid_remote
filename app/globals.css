@@ -67,6 +67,23 @@
   /* Typography */
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+
+  /* Window Controls Overlay (WCO) & Titlebar Safe Insets */
+  --titlebar-left: max(0px, env(titlebar-area-x, 0px), env(safe-area-inset-left, 0px));
+  --titlebar-right: max(
+    0px,
+    calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw)),
+    env(safe-area-inset-right, 0px)
+  );
+  --titlebar-top: max(0px, env(titlebar-area-y, 0px), env(safe-area-inset-top, 0px));
+  --titlebar-height: max(0px, env(titlebar-area-height, 0px));
+
+  /* Dynamic JS-synchronized fallback variables */
+  --wco-visible: 0;
+  --wco-left: 0px;
+  --wco-right: 0px;
+  --wco-top: 0px;
+  --wco-height: 0px;
 }
 
 * {
@@ -156,8 +173,31 @@ a:hover {
   grid-template-columns: auto minmax(200px, 1fr) auto;
   min-height: 64px;
   padding: var(--space-2) 0;
+  padding-left: max(var(--titlebar-left), var(--wco-left, 0px));
+  padding-right: max(var(--titlebar-right), var(--wco-right, 0px));
+  padding-top: max(var(--space-2), var(--titlebar-top), var(--wco-top, 0px));
   position: relative;
   z-index: 20;
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+/* Ensure interactive elements inside the draggable titlebar remain clickable */
+.topbar button,
+.topbar a,
+.topbar select,
+.topbar input,
+.topbar [role="button"],
+.topbar [role="combobox"],
+.topbar [role="option"],
+.topbar .button,
+.topbar .brand,
+.topbar .custom-select-container,
+.topbar .custom-select-trigger,
+.topbar .custom-select-dropdown,
+.topbar .connection-pill {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
 }
 
 .brand {
@@ -2205,5 +2245,18 @@ a:hover {
 
   .control-dock {
     justify-content: flex-start;
+  }
+}
+
+/* Window Controls Overlay Display Mode */
+@media (display-mode: window-controls-overlay) {
+  .topbar {
+    padding-left: max(env(titlebar-area-x, 0px), env(safe-area-inset-left, 0px), var(--wco-left, 0px));
+    padding-right: max(
+      calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw)),
+      env(safe-area-inset-right, 0px),
+      var(--wco-right, 0px)
+    );
+    padding-top: max(var(--space-2), env(titlebar-area-y, 0px), env(safe-area-inset-top, 0px), var(--wco-top, 0px));
   }
 }
