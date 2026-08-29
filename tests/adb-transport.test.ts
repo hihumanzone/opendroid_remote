@@ -734,4 +734,54 @@ describe("WebUsbAdbTransport multi-device lifecycle", () => {
     expect(usb.connect).toHaveBeenCalledTimes(1);
     expect(transport.snapshot.pending).toHaveLength(0);
   });
+
+  it("retries when USB device disconnects with NotFoundError and reconnects on re-enumeration", async () => {
+    let devices = [fakeUsbDevice("SERIAL-A")];
+    let connectAttempts = 0;
+    devices[0]!.connect = vi.fn(async () => {
+      connectAttempts += 1;
+      if (connectAttempts === 1) {
+        const error = new DOMException(
+          "Failed to execute 'open' on 'USBDevice': The device was disconnected.",
+          "NotFoundError",
+        );
+        throw error;
+      }
+      return { androidSerial: "SERIAL-A" };
+    }) as unknown as AdbDaemonWebUsbDevice["connect"];
+
+    const refreshedUsb = fakeUsbDevice("SERIAL-A");
+    refreshedUsb.connect = vi.fn(async () => {
+      return { androidSerial: "SERIAL-A" };
+    }) as unknown as AdbDaemonWebUsbDevice["connect"];
+
+    const authenticate = vi.fn(async ({ serial }: { serial: string }) => {
+      return { serial } as unknown as AdbDaemonTransport;
+    }) as unknown as typeof AdbDaemonTransport.authenticate;
+
+    const transport = new WebUsbAdbTransport(new Diagnostics(), {
+      manager: {
+        async getDevices() {
+          if (connectAttempts >= 1) {
+            devices = [refreshedUsb];
+          }
+          return devices;
+        },
+        async requestDevice() {
+          return devices[0];
+        },
+      },
+      credentialStore: EMPTY_CREDENTIAL_STORE,
+      authenticate,
+      createAdb: () => fakeAdb("SERIAL-A", "Galaxy"),
+      connectionRetryDelayMs: 0,
+    });
+
+    const connected = await transport.requestAndConnect();
+
+    expect(connected).toBeDefined();
+    expect(connected?.descriptor.serial).toBe("SERIAL-A");
+    expect(transport.snapshot.phase).toBe("connected");
+    expect(refreshedUsb.connect).toHaveBeenCalledTimes(1);
+  });
 });

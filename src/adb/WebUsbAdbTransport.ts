@@ -68,6 +68,7 @@ export interface WebUsbAdbTransportOptions {
   handshakeTimeoutMs?: number;
   staleHandshakeRetries?: number;
   connectionRetries?: number;
+  connectionRetryDelayMs?: number;
   authorizationTimeoutMs?: number;
   autoReconnect?: boolean;
 }
@@ -77,6 +78,7 @@ type SnapshotListener = (snapshot: AdbTransportSnapshot) => void;
 const AUTHORIZATION_TIMEOUT_MS = 120_000;
 const HANDSHAKE_TIMEOUT_MS = 10_000;
 const DEFAULT_CONNECTION_RETRIES = 2;
+const DEFAULT_CONNECTION_RETRY_DELAY_MS = 500;
 const RECONNECT_RETRY_DELAY_MS = 1_500;
 
 interface ReconnectIntent {
@@ -111,6 +113,12 @@ function humanizeError(error: unknown): string {
       return "WebUSB was blocked. Open this page over HTTPS (or localhost) and allow USB access.";
     }
     if (error.name === "NotFoundError") {
+      if (
+        error.message &&
+        error.message.toLowerCase().includes("disconnected")
+      ) {
+        return "The USB device was disconnected.";
+      }
       return "No USB device was selected.";
     }
     if (error.name === "NetworkError") {
@@ -150,6 +158,7 @@ export class WebUsbAdbTransport {
   readonly #createAdb: (transport: AdbDaemonTransport) => Adb;
   readonly #handshakeTimeoutMs: number;
   readonly #connectionRetries: number;
+  readonly #connectionRetryDelayMs: number;
   readonly #authorizationTimeoutMs: number;
   readonly #listeners = new Set<SnapshotListener>();
   readonly #diagnostics: Diagnostics;
@@ -211,6 +220,11 @@ export class WebUsbAdbTransport {
       options.connectionRetries ??
       options.staleHandshakeRetries ??
       DEFAULT_CONNECTION_RETRIES;
+    this.#connectionRetryDelayMs =
+      options.connectionRetryDelayMs ??
+      (typeof process !== "undefined" && process.env?.NODE_ENV === "test"
+        ? 0
+        : DEFAULT_CONNECTION_RETRY_DELAY_MS);
     this.#authorizationTimeoutMs =
       options.authorizationTimeoutMs ?? AUTHORIZATION_TIMEOUT_MS;
     this.#autoReconnect = options.autoReconnect ?? true;
@@ -337,13 +351,7 @@ export class WebUsbAdbTransport {
     let device: AdbDaemonWebUsbDevice | undefined;
     try {
       device = await this.#manager.requestDevice();
-      if (!device) return undefined;
-      const descriptor = descriptorOf(device, this.#deviceKey(device));
-      this.#knownDevices.set(descriptor.serial, descriptor);
-      this.#emit();
-      return await this.#connect(device, false);
     } catch (error) {
-      if (isConnectionCancellation(error)) return undefined;
       if (isChooserCancellation(error)) {
         this.#diagnostics.info(
           "webusb",
@@ -352,11 +360,23 @@ export class WebUsbAdbTransport {
         );
         return undefined;
       }
-      if (!device) this.#fail("USB device selection failed", error);
+      this.#fail("USB device selection failed", error);
       throw error;
     } finally {
       this.#chooserOpen = false;
       this.#emit();
+    }
+    if (!device) return undefined;
+
+    const descriptor = descriptorOf(device, this.#deviceKey(device));
+    this.#knownDevices.set(descriptor.serial, descriptor);
+    this.#emit();
+
+    try {
+      return await this.#connect(device, false);
+    } catch (error) {
+      if (isConnectionCancellation(error)) return undefined;
+      throw error;
     }
   }
 
@@ -554,6 +574,7 @@ export class WebUsbAdbTransport {
       descriptor,
     );
 
+    let currentDevice = device;
     try {
       let authenticatedTransport: AdbDaemonTransport | undefined;
       let activeHandshake = 0;
@@ -565,10 +586,29 @@ export class WebUsbAdbTransport {
         const handshake = retry + 1;
         activeHandshake = handshake;
         try {
-          const connection = await device.connect();
+          if (retry > 0 && this.#manager?.getDevices) {
+            try {
+              const available = await this.#manager.getDevices();
+              const refreshed = available.find(
+                (candidate) =>
+                  this.#deviceKey(candidate) === connectionKey ||
+                  candidate.raw === currentDevice.raw ||
+                  (candidate.raw.serialNumber?.trim() &&
+                    candidate.raw.serialNumber?.trim() ===
+                      currentDevice.raw.serialNumber?.trim()),
+              );
+              if (refreshed) {
+                currentDevice = refreshed;
+                this.#pendingUsbDevices.set(pendingSerial, currentDevice);
+              }
+            } catch {
+              // Retain current handle if scanning fails.
+            }
+          }
+          const connection = await currentDevice.connect();
           this.#throwIfCancelled(connectionKey, attempt);
           authenticatedTransport = await this.#authenticateConnection(
-            device,
+            currentDevice,
             connection,
             pendingSerial,
             descriptor,
@@ -580,18 +620,16 @@ export class WebUsbAdbTransport {
         } catch (error) {
           if (activeHandshake === handshake) activeHandshake = 0;
           try {
-            if (device.raw.opened) await device.raw.close();
+            if (currentDevice.raw.opened) await currentDevice.raw.close();
           } catch {
             // A stale or detached USB handle may already be closed.
           }
           if (
-            isChooserCancellation(error) ||
             isConnectionCancellation(error) ||
             this.#attempts.get(connectionKey) !== attempt ||
             retry >= this.#connectionRetries
           ) {
             if (
-              !isChooserCancellation(error) &&
               !isConnectionCancellation(error) &&
               this.#attempts.get(connectionKey) !== attempt
             ) {
@@ -616,6 +654,12 @@ export class WebUsbAdbTransport {
               : `Connection attempt ${attemptNumber} of ${totalAttempts} for ${descriptor.label} failed (${humanizeError(error)}); retrying...`,
             error,
           );
+          if (this.#connectionRetryDelayMs > 0) {
+            await new Promise((resolve) =>
+              setTimeout(resolve, this.#connectionRetryDelayMs),
+            );
+            this.#throwIfCancelled(connectionKey, attempt);
+          }
         }
       }
       if (!authenticatedTransport) {
@@ -625,18 +669,18 @@ export class WebUsbAdbTransport {
 
       const adb = this.#createAdb(authenticatedTransport);
       const resolvedSerial = await this.#resolveStableSerial(
-        device,
+        currentDevice,
         adb,
         pendingSerial,
       );
       const connectedDescriptor = descriptorOf(
-        device,
+        currentDevice,
         resolvedSerial,
         adb.banner.model || adb.banner.product,
       );
       const connected: ConnectedAdbDevice = {
         adb,
-        usbDevice: device,
+        usbDevice: currentDevice,
         descriptor: connectedDescriptor,
       };
       const duplicate = this.#connections.get(resolvedSerial);
@@ -684,7 +728,7 @@ export class WebUsbAdbTransport {
         this.#pendingAttemptKeys.delete(pendingSerial);
       }
       try {
-        if (device.raw.opened) await device.raw.close();
+        if (currentDevice.raw.opened) await currentDevice.raw.close();
       } catch {
         // Ignore secondary cleanup failure.
       }
