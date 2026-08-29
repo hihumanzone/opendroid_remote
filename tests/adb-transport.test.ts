@@ -609,7 +609,7 @@ describe("WebUsbAdbTransport multi-device lifecycle", () => {
         throw new Error("USB interface claimed by another process");
       }
       return { androidSerial: "SERIAL-A" };
-    });
+    }) as unknown as AdbDaemonWebUsbDevice["connect"];
     const authenticate = vi.fn(async ({ serial }: { serial: string }) => {
       return { serial } as unknown as AdbDaemonTransport;
     }) as unknown as typeof AdbDaemonTransport.authenticate;
@@ -673,7 +673,7 @@ describe("WebUsbAdbTransport multi-device lifecycle", () => {
     const usb = fakeUsbDevice("SERIAL-A");
     usb.connect = vi.fn(async () => {
       throw new Error("Persistent USB device communication error");
-    });
+    }) as unknown as AdbDaemonWebUsbDevice["connect"];
     const authenticate = vi.fn(async ({ serial }: { serial: string }) => {
       return { serial } as unknown as AdbDaemonTransport;
     }) as unknown as typeof AdbDaemonTransport.authenticate;
@@ -704,7 +704,9 @@ describe("WebUsbAdbTransport multi-device lifecycle", () => {
   it("does not retry when connection attempt is cancelled by user", async () => {
     const usb = fakeUsbDevice("SERIAL-A");
     const gate = deferred<{ androidSerial: string }>();
-    usb.connect = vi.fn(() => gate.promise);
+    usb.connect = vi.fn(
+      () => gate.promise,
+    ) as unknown as AdbDaemonWebUsbDevice["connect"];
     const transport = new WebUsbAdbTransport(new Diagnostics(), {
       manager: {
         async getDevices() {
