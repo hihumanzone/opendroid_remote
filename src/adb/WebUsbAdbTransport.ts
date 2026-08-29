@@ -67,6 +67,7 @@ export interface WebUsbAdbTransportOptions {
   createAdb?: (transport: AdbDaemonTransport) => Adb;
   handshakeTimeoutMs?: number;
   staleHandshakeRetries?: number;
+  connectionRetries?: number;
   authorizationTimeoutMs?: number;
   autoReconnect?: boolean;
 }
@@ -75,7 +76,7 @@ type SnapshotListener = (snapshot: AdbTransportSnapshot) => void;
 
 const AUTHORIZATION_TIMEOUT_MS = 120_000;
 const HANDSHAKE_TIMEOUT_MS = 10_000;
-const STALE_HANDSHAKE_RETRIES = 2;
+const DEFAULT_CONNECTION_RETRIES = 2;
 const RECONNECT_RETRY_DELAY_MS = 1_500;
 
 interface ReconnectIntent {
@@ -123,11 +124,19 @@ function isChooserCancellation(error: unknown): boolean {
   return error instanceof DOMException && error.name === "NotFoundError";
 }
 
-class ConnectionCancelledError extends Error {
-  constructor() {
-    super("Connection attempt cancelled");
+export class ConnectionCancelledError extends Error {
+  constructor(message = "Connection attempt cancelled") {
+    super(message);
     this.name = "ConnectionCancelledError";
+    Object.setPrototypeOf(this, ConnectionCancelledError.prototype);
   }
+}
+
+function isConnectionCancellation(error: unknown): boolean {
+  return (
+    error instanceof ConnectionCancelledError ||
+    (error instanceof Error && error.name === "ConnectionCancelledError")
+  );
 }
 
 /**
@@ -140,7 +149,7 @@ export class WebUsbAdbTransport {
   readonly #authenticate: typeof AdbDaemonTransport.authenticate;
   readonly #createAdb: (transport: AdbDaemonTransport) => Adb;
   readonly #handshakeTimeoutMs: number;
-  readonly #staleHandshakeRetries: number;
+  readonly #connectionRetries: number;
   readonly #authorizationTimeoutMs: number;
   readonly #listeners = new Set<SnapshotListener>();
   readonly #diagnostics: Diagnostics;
@@ -198,8 +207,10 @@ export class WebUsbAdbTransport {
     this.#createAdb = options.createAdb ?? ((transport) => new Adb(transport));
     this.#handshakeTimeoutMs =
       options.handshakeTimeoutMs ?? HANDSHAKE_TIMEOUT_MS;
-    this.#staleHandshakeRetries =
-      options.staleHandshakeRetries ?? STALE_HANDSHAKE_RETRIES;
+    this.#connectionRetries =
+      options.connectionRetries ??
+      options.staleHandshakeRetries ??
+      DEFAULT_CONNECTION_RETRIES;
     this.#authorizationTimeoutMs =
       options.authorizationTimeoutMs ?? AUTHORIZATION_TIMEOUT_MS;
     this.#autoReconnect = options.autoReconnect ?? true;
@@ -332,7 +343,7 @@ export class WebUsbAdbTransport {
       this.#emit();
       return await this.#connect(device, false);
     } catch (error) {
-      if (error instanceof ConnectionCancelledError) return undefined;
+      if (isConnectionCancellation(error)) return undefined;
       if (isChooserCancellation(error)) {
         this.#diagnostics.info(
           "webusb",
@@ -548,7 +559,7 @@ export class WebUsbAdbTransport {
       let activeHandshake = 0;
       for (
         let retry = 0;
-        retry <= this.#staleHandshakeRetries;
+        retry <= this.#connectionRetries;
         retry += 1
       ) {
         const handshake = retry + 1;
@@ -573,11 +584,19 @@ export class WebUsbAdbTransport {
           } catch {
             // A stale or detached USB handle may already be closed.
           }
-          this.#throwIfCancelled(connectionKey, attempt);
           if (
-            !(error instanceof StaleAdbHandshakeError) ||
-            retry >= this.#staleHandshakeRetries
+            isChooserCancellation(error) ||
+            isConnectionCancellation(error) ||
+            this.#attempts.get(connectionKey) !== attempt ||
+            retry >= this.#connectionRetries
           ) {
+            if (
+              !isChooserCancellation(error) &&
+              !isConnectionCancellation(error) &&
+              this.#attempts.get(connectionKey) !== attempt
+            ) {
+              throw new ConnectionCancelledError();
+            }
             throw error;
           }
           this.#pending.set(pendingSerial, {
@@ -587,15 +606,20 @@ export class WebUsbAdbTransport {
               this.#pending.get(pendingSerial)?.startedAt ?? Date.now(),
           });
           this.#emit();
+          const attemptNumber = retry + 1;
+          const totalAttempts = this.#connectionRetries + 1;
           this.#diagnostics.warn(
             "adb",
-            "authentication-handshake-retry",
-            `The USB handshake for ${descriptor.label} stalled; reopening it with the same saved ADB identity (${retry + 1}/${this.#staleHandshakeRetries}).`,
+            "connection-retry",
+            error instanceof StaleAdbHandshakeError
+              ? `The USB handshake for ${descriptor.label} stalled; reopening it with the same saved ADB identity (${attemptNumber}/${this.#connectionRetries}).`
+              : `Connection attempt ${attemptNumber} of ${totalAttempts} for ${descriptor.label} failed (${humanizeError(error)}); retrying...`,
+            error,
           );
         }
       }
       if (!authenticatedTransport) {
-        throw new StaleAdbHandshakeError();
+        throw new Error("Could not establish ADB connection after retry attempts.");
       }
       this.#throwIfCancelled(connectionKey, attempt);
 
@@ -664,7 +688,7 @@ export class WebUsbAdbTransport {
       } catch {
         // Ignore secondary cleanup failure.
       }
-      if (error instanceof ConnectionCancelledError) {
+      if (isConnectionCancellation(error)) {
         this.#emit();
         throw error;
       }

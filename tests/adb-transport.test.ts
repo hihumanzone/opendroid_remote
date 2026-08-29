@@ -599,4 +599,137 @@ describe("WebUsbAdbTransport multi-device lifecycle", () => {
     expect(authenticate).toHaveBeenCalledTimes(2);
     expect(transport.snapshot.pending).toHaveLength(0);
   });
+
+  it("retries up to 3 times on connection error and succeeds on second attempt", async () => {
+    const usb = fakeUsbDevice("SERIAL-A");
+    let connectAttempts = 0;
+    usb.connect = vi.fn(async () => {
+      connectAttempts += 1;
+      if (connectAttempts === 1) {
+        throw new Error("USB interface claimed by another process");
+      }
+      return { androidSerial: "SERIAL-A" };
+    });
+    const authenticate = vi.fn(async ({ serial }: { serial: string }) => {
+      return { serial } as unknown as AdbDaemonTransport;
+    }) as unknown as typeof AdbDaemonTransport.authenticate;
+    const transport = new WebUsbAdbTransport(new Diagnostics(), {
+      manager: {
+        async getDevices() {
+          return [usb];
+        },
+        async requestDevice() {
+          return undefined;
+        },
+      },
+      credentialStore: EMPTY_CREDENTIAL_STORE,
+      authenticate,
+      createAdb: () => fakeAdb("SERIAL-A", "Galaxy"),
+    });
+
+    const connected = await transport.connectAuthorized("SERIAL-A");
+
+    expect(usb.connect).toHaveBeenCalledTimes(2);
+    expect(authenticate).toHaveBeenCalledTimes(1);
+    expect(connected.descriptor.serial).toBe("SERIAL-A");
+    expect(transport.snapshot.phase).toBe("connected");
+    expect(transport.snapshot.pending).toHaveLength(0);
+  });
+
+  it("retries up to 3 times on authentication failure and succeeds on third attempt", async () => {
+    const usb = fakeUsbDevice("SERIAL-A");
+    let authAttempts = 0;
+    const authenticate = vi.fn(async ({ serial }: { serial: string }) => {
+      authAttempts += 1;
+      if (authAttempts < 3) {
+        throw new Error("Temporary ADB authentication failure");
+      }
+      return { serial } as unknown as AdbDaemonTransport;
+    }) as unknown as typeof AdbDaemonTransport.authenticate;
+    const transport = new WebUsbAdbTransport(new Diagnostics(), {
+      manager: {
+        async getDevices() {
+          return [usb];
+        },
+        async requestDevice() {
+          return undefined;
+        },
+      },
+      credentialStore: EMPTY_CREDENTIAL_STORE,
+      authenticate,
+      createAdb: () => fakeAdb("SERIAL-A", "Galaxy"),
+    });
+
+    const connected = await transport.connectAuthorized("SERIAL-A");
+
+    expect(usb.connect).toHaveBeenCalledTimes(3);
+    expect(authenticate).toHaveBeenCalledTimes(3);
+    expect(connected.descriptor.serial).toBe("SERIAL-A");
+    expect(transport.snapshot.phase).toBe("connected");
+    expect(transport.snapshot.pending).toHaveLength(0);
+  });
+
+  it("stops and reports error after 3 failed connection attempts", async () => {
+    const usb = fakeUsbDevice("SERIAL-A");
+    usb.connect = vi.fn(async () => {
+      throw new Error("Persistent USB device communication error");
+    });
+    const authenticate = vi.fn(async ({ serial }: { serial: string }) => {
+      return { serial } as unknown as AdbDaemonTransport;
+    }) as unknown as typeof AdbDaemonTransport.authenticate;
+    const transport = new WebUsbAdbTransport(new Diagnostics(), {
+      manager: {
+        async getDevices() {
+          return [usb];
+        },
+        async requestDevice() {
+          return undefined;
+        },
+      },
+      credentialStore: EMPTY_CREDENTIAL_STORE,
+      authenticate,
+      createAdb: () => fakeAdb("SERIAL-A", "Galaxy"),
+    });
+
+    await expect(transport.connectAuthorized("SERIAL-A")).rejects.toThrow(
+      "Persistent USB device communication error",
+    );
+
+    expect(usb.connect).toHaveBeenCalledTimes(3);
+    expect(authenticate).not.toHaveBeenCalled();
+    expect(transport.snapshot.phase).toBe("error");
+    expect(transport.snapshot.pending).toHaveLength(0);
+  });
+
+  it("does not retry when connection attempt is cancelled by user", async () => {
+    const usb = fakeUsbDevice("SERIAL-A");
+    const gate = deferred<{ androidSerial: string }>();
+    usb.connect = vi.fn(() => gate.promise);
+    const transport = new WebUsbAdbTransport(new Diagnostics(), {
+      manager: {
+        async getDevices() {
+          return [usb];
+        },
+        async requestDevice() {
+          return undefined;
+        },
+      },
+      credentialStore: EMPTY_CREDENTIAL_STORE,
+      authenticate: vi.fn(async ({ serial }: { serial: string }) => {
+        return { serial } as unknown as AdbDaemonTransport;
+      }) as unknown as typeof AdbDaemonTransport.authenticate,
+      createAdb: () => fakeAdb("SERIAL-A", "Galaxy"),
+    });
+
+    const connectPromise = transport.connectAuthorized("SERIAL-A");
+    await vi.waitFor(() => {
+      expect(transport.snapshot.pending).toHaveLength(1);
+    });
+    transport.cancel("SERIAL-A");
+    gate.resolve({ androidSerial: "SERIAL-A" });
+
+    await expect(connectPromise).rejects.toThrow("Connection attempt cancelled");
+    expect(usb.connect).toHaveBeenCalledTimes(1);
+    expect(transport.snapshot.pending).toHaveLength(0);
+  });
 });
