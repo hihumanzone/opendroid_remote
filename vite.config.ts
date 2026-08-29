@@ -1,39 +1,58 @@
 import vinext from "vinext";
 import { defineConfig } from "vite";
-import hostingConfig from "./.openai/hosting.json" with { type: "json" };
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { sites } from "./build/sites-vite-plugin";
 
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
   "00000000-0000-4000-8000-000000000000";
 
-const { d1, r2 } = hostingConfig;
+interface HostingConfig {
+  d1?: string | null;
+  r2?: string | null;
+  project_id?: string | null;
+}
 
-// macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
-const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
-
-const localBindingConfig = {
-  main: "./worker/index.ts",
-  compatibility_flags: ["nodejs_compat"],
-  d1_databases: d1
-    ? [
-        {
-          binding: d1,
-          database_name: "site-creator-d1",
-          database_id: SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
-        },
-      ]
-    : [],
-  r2_buckets: r2
-    ? [
-        {
-          binding: r2,
-          bucket_name: "site-creator-r2",
-        },
-      ]
-    : [],
-};
+function loadHostingConfig(): HostingConfig {
+  try {
+    const hostingPath = resolve(".openai", "hosting.json");
+    if (existsSync(hostingPath)) {
+      return JSON.parse(readFileSync(hostingPath, "utf8")) as HostingConfig;
+    }
+  } catch {
+    // Fallback if .openai/hosting.json is missing or invalid
+  }
+  return { d1: null, r2: null, project_id: null };
+}
 
 export default defineConfig(async () => {
+  const hostingConfig = loadHostingConfig();
+  const { d1, r2 } = hostingConfig;
+
+  // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
+  const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
+
+  const localBindingConfig = {
+    main: "./worker/index.ts",
+    compatibility_flags: ["nodejs_compat"],
+    d1_databases: d1
+      ? [
+          {
+            binding: d1,
+            database_name: "site-creator-d1",
+            database_id: SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
+          },
+        ]
+      : [],
+    r2_buckets: r2
+      ? [
+          {
+            binding: r2,
+            bucket_name: "site-creator-r2",
+          },
+        ]
+      : [],
+  };
   // Keep Wrangler and Miniflare state project-local. These are non-secret tool
   // settings; application environment belongs in ignored `.env*` files.
   process.env.WRANGLER_WRITE_LOGS ??= "false";

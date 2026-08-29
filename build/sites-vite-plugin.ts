@@ -1,4 +1,4 @@
-import { access, cp, mkdir, rm } from "node:fs/promises";
+import { access, cp, mkdir, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { Plugin } from "vite";
 
@@ -34,6 +34,12 @@ export function sites(): Plugin {
 
       if (await exists(hostingConfig)) {
         await cp(hostingConfig, resolve(outputDirectory, "hosting.json"));
+      } else {
+        await writeFile(
+          resolve(outputDirectory, "hosting.json"),
+          JSON.stringify({ d1: null, project_id: null, r2: null }),
+          "utf8",
+        );
       }
       if (await exists(drizzleSource)) {
         await cp(drizzleSource, resolve(outputDirectory, "drizzle"), {
