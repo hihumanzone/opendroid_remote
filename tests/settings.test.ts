@@ -83,7 +83,7 @@ describe("persistent application settings", () => {
         codec: "unknown",
         crop: "bad",
         mouse: {
-          mode: "touch",
+          mode: "unsupported-mode",
           sensitivity: 99,
           rawInput: "yes",
         },
@@ -140,5 +140,17 @@ describe("persistent application settings", () => {
     });
 
     expect(quality.mouse.mode).toBe("disabled");
+  });
+
+  it("persists touch mouse mode for tap-only interaction", () => {
+    const quality = normalizeStreamQuality({
+      mouse: {
+        mode: "touch",
+        sensitivity: 1,
+        rawInput: false,
+      },
+    });
+
+    expect(quality.mouse.mode).toBe("touch");
   });
 });

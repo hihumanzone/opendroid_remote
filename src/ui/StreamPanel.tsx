@@ -591,6 +591,10 @@ export const StreamPanel = memo(function StreamPanel({
                     label: "Physical UHID mouse · relative, recommended",
                   },
                   {
+                    value: "touch",
+                    label: "Touchscreen tap · direct touch, no hover",
+                  },
+                  {
                     value: "sdk",
                     label: "SDK compatibility · absolute (explicit opt-in)",
                   },
@@ -656,6 +660,12 @@ export const StreamPanel = memo(function StreamPanel({
                   </p>
                 ) : null}
               </>
+            ) : quality.mouse.mode === "touch" ? (
+              <p className="muted">
+                Converts mouse clicks and drags directly to touchscreen taps
+                and swipes. No cursor or hover state is registered on Android,
+                making interaction feel like direct touch input on the screen.
+              </p>
             ) : quality.mouse.mode === "sdk" ? (
               <p className="muted">
                 Uses scrcpy&apos;s absolute Android input compatibility path.

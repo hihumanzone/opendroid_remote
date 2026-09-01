@@ -148,6 +148,9 @@ Its direct mouse path is separate from touch injection:
   supplies authoritative button masks and emits every outstanding UP on blur,
   mode change, or shutdown. It is never selected silently because some Android
   versions treat a primary SDK click as touch-compatible.
+- Touchscreen tap mode maps desktop mouse clicks and drags directly to scrcpy
+  touch pointer events without sending any hover movement. This provides a pure
+  touch experience with zero hover pointers on Android.
 - Touchscreen/pen contacts and game mappings keep using independent scrcpy
   touch pointer IDs. A desktop mouse does not enter that path in physical mode.
 

@@ -81,6 +81,7 @@ const HARDWARE_PREFERENCES = new Set<DecoderHardwareAcceleration>([
 const MOUSE_INPUT_MODES = new Set<MouseInputMode>([
   "uhid",
   "sdk",
+  "touch",
   "disabled",
 ]);
 const TUNNELS = new Set<TunnelPreference>([

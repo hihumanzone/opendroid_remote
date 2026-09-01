@@ -51,14 +51,16 @@ export type DecoderHardwareAcceleration =
   | "no-preference"
   | "prefer-hardware"
   | "prefer-software";
-export type MouseInputMode = "uhid" | "sdk" | "disabled";
+export type MouseInputMode = "uhid" | "sdk" | "touch" | "disabled";
 
 export interface MouseInputSettings {
   /**
    * `uhid` creates a virtual HID mouse in Android's kernel, matching a
    * physically attached mouse. `sdk` is an explicit compatibility mode that
-   * uses scrcpy's absolute Android input path. `disabled` suppresses direct
-   * mouse input while leaving explicit touch mappings available.
+   * uses scrcpy's absolute Android input path. `touch` converts mouse clicks
+   * and drags directly to touchscreen taps without sending hover motion.
+   * `disabled` suppresses direct mouse input while leaving explicit touch
+   * mappings available.
    */
   mode: MouseInputMode;
   sensitivity: number;
@@ -133,7 +135,7 @@ export const DEFAULT_STREAM_QUALITY: StreamQuality = {
   audio: {
     enabled: true,
     duplicateOnDevice: false,
-    volume: 0.9,
+    volume: 1,
     codec: "auto",
     bitRate: 128_000,
     bufferMs: 60,

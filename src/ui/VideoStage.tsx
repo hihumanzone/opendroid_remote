@@ -289,6 +289,17 @@ export const VideoStage = memo(function VideoStage({
       if (!pointerLocked) {
         onReleaseMouseButtons();
       }
+      for (const [pointerId, pointer] of active.current) {
+        onDirectTouch(
+          "cancel",
+          pointer.id,
+          pointer.point,
+          0,
+          PRIMARY_TOUCH_BUTTON,
+        );
+        pointers.current.release(`direct:${pointerId}`);
+      }
+      active.current.clear();
     };
 
     const upEvent =
@@ -377,6 +388,23 @@ export const VideoStage = memo(function VideoStage({
         return;
       }
       if (mouseMode === "disabled") return;
+      if (mouseMode === "touch") {
+        if (event.button === 0) {
+          const point = pointFor(event, false);
+          if (!point) return;
+          const id = pointers.current.allocate(`direct:${event.pointerId}`);
+          const buttons = PRIMARY_TOUCH_BUTTON;
+          active.current.set(event.pointerId, { id, point, buttons });
+          onDirectTouch(
+            "down",
+            id,
+            point,
+            buttons,
+            PRIMARY_TOUCH_BUTTON,
+          );
+        }
+        return;
+      }
       const point = pointFor(event, false) ?? { x: 0.5, y: 0.5 };
       onMouseButton(
         point,
@@ -431,6 +459,22 @@ export const VideoStage = memo(function VideoStage({
         return;
       }
       if (mouseMode === "disabled") return;
+      if (mouseMode === "touch") {
+        const pointer = active.current.get(event.pointerId);
+        if (!pointer) return;
+        const point = pointFor(event, true);
+        if (!point) return;
+        pointer.point = point;
+        pointer.buttons = PRIMARY_TOUCH_BUTTON;
+        onDirectTouch(
+          "move",
+          pointer.id,
+          point,
+          pointer.buttons,
+          PRIMARY_TOUCH_BUTTON,
+        );
+        return;
+      }
       const isDragging = event.buttons !== 0 || capturedMouse.current.size > 0;
       const point = pointFor(event, isDragging);
       if (!point) return;
@@ -494,7 +538,9 @@ export const VideoStage = memo(function VideoStage({
                 ? "uses-native-mouse"
                 : mouseMode === "sdk"
                   ? "uses-sdk-mouse"
-                  : "mouse-input-disabled"
+                  : mouseMode === "touch"
+                    ? "uses-touch-mouse"
+                    : "mouse-input-disabled"
             } ${
               pointerLocked ? "is-mouse-locked" : ""
             }`}
@@ -525,6 +571,10 @@ export const VideoStage = memo(function VideoStage({
                   onGameMouseUp(event.button);
                   return;
                 }
+                if (mouseMode === "touch") {
+                  releasePointer(event, "up");
+                  return;
+                }
                 const point = pointFor(event) ?? { x: 0.5, y: 0.5 };
                 onMouseButton(
                   point,
@@ -539,6 +589,10 @@ export const VideoStage = memo(function VideoStage({
             onPointerCancel={(event) => {
               if (event.pointerType === "mouse") {
                 releaseCapturedMappings();
+                if (mouseMode === "touch") {
+                  releasePointer(event, "cancel");
+                  return;
+                }
                 onReleaseMouseButtons();
                 return;
               }
@@ -547,6 +601,10 @@ export const VideoStage = memo(function VideoStage({
             onLostPointerCapture={(event) => {
               if (event.pointerType === "mouse") {
                 releaseCapturedMappings();
+                if (mouseMode === "touch") {
+                  releasePointer(event, "cancel");
+                  return;
+                }
                 if (!pointerLocked) onReleaseMouseButtons();
                 return;
               }

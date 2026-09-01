@@ -797,7 +797,9 @@ export class ScrcpySession {
         ? "Using a relative Android UHID physical mouse."
         : mouseMode === "sdk"
           ? "Using the explicitly selected Android SDK mouse compatibility path."
-          : "Direct mouse input is disabled because physical UHID access is unavailable.",
+          : mouseMode === "touch"
+            ? "Using direct touchscreen tap/touch emulation for mouse clicks (no hover)."
+            : "Direct mouse input is disabled because physical UHID access is unavailable.",
       { requestedMouseMode, mouseMode },
     );
 

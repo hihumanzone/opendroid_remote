@@ -136,7 +136,7 @@ export class PcmAudioPlayer {
   #decoder?: AudioDecoder;
   #generation = 0;
   #nextStartTime = 0;
-  #volume = 0.9;
+  #volume = 1;
   #targetBufferMs = 60;
 
   get running(): boolean {

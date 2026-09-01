@@ -175,4 +175,33 @@ describe("Android SDK mouse compatibility path", () => {
       }),
     );
   });
+
+  it("suppresses hover motion in touch mode while allowing scroll injection", async () => {
+    const injectTouch = vi.fn(async () => {});
+    const injectScroll = vi.fn(async () => {});
+    const controller = {
+      injectTouch,
+      injectScroll,
+    } as unknown as ScrcpyControlMessageWriter;
+    const adapter = new ScrcpyControlAdapter(
+      controller,
+      () => ({ width: 1000, height: 500 }),
+      new Diagnostics(),
+      "touch",
+    );
+
+    // mouseMove should not inject hover events
+    await adapter.mouseMove({ x: 0.25, y: 0.75 }, 0);
+    expect(injectTouch).not.toHaveBeenCalled();
+
+    // scroll should work
+    await adapter.scroll({ x: 0.5, y: 0.5 }, 0, -1);
+    expect(injectScroll).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pointerX: 500,
+        pointerY: 250,
+        scrollY: -1,
+      }),
+    );
+  });
 });

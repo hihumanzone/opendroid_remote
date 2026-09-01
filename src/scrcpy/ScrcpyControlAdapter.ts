@@ -216,7 +216,9 @@ export class ScrcpyControlAdapter implements SyntheticTouchSink {
     if (this.mouseMode === "uhid" && this.#uhidMouse) {
       return this.#uhidMouse.scroll(scrollX, scrollY);
     }
-    if (this.mouseMode !== "sdk") return Promise.resolve();
+    if (this.mouseMode !== "sdk" && this.mouseMode !== "touch") {
+      return Promise.resolve();
+    }
     this.#sdkPointer = point;
     const buttons = this.#sdkButtonMask();
     return this.#enqueue("scroll", async () => {

@@ -38,6 +38,7 @@ function mouseLabel(
       : "Mouse: UHID (Click)";
   }
   if (mode === "sdk") return "Mouse: SDK Absolute";
+  if (mode === "touch") return "Mouse: Touch (Tap)";
   return "Mouse: Off";
 }
 

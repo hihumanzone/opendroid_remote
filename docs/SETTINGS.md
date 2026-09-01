@@ -60,9 +60,7 @@ final decoder-placement control.
 
 ## Mouse input
 
-| Setting | Default | Accepted values / behavior |
-| --- | --- | --- |
-| Android mouse mode | Physical UHID | **Physical UHID** registers a relative five-button kernel HID mouse; **SDK compatibility** explicitly uses scrcpy absolute hover/button/scroll injection; **Disabled** forwards no ordinary desktop mouse input while touch and configured mappings remain available |
+| Android mouse mode | Physical UHID | **Physical UHID** registers a relative five-button kernel HID mouse; **Touchscreen tap** converts clicks/drags directly to touch taps with zero hover detection; **SDK compatibility** explicitly uses scrcpy absolute hover/button/scroll injection; **Disabled** forwards no ordinary desktop mouse input while touch and configured mappings remain available |
 | Physical sensitivity | 1× | 0.1–4×; applied before relative deltas are split into signed HID reports, with fractional movement retained between reports |
 | Unadjusted browser movement | On | Requests raw/unadjusted Pointer Lock first and retries normal Pointer Lock if unsupported |
 

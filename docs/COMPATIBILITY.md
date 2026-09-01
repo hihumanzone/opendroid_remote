@@ -52,8 +52,8 @@ policy configuration.
 | Video encoder | At least one scrcpy-advertised encoder for a browser-supported codec |
 | Audio encoder | Optional; raw PCM needs no compressed encoder. Opus/AAC/FLAC choices use a matching runtime-advertised/default encoder and browser decoder |
 | Display capture | The chosen display must be capturable by Android’s media projection/display APIs |
-| Control injection | Required for touch/key control; the device may impose policy restrictions |
 | Physical mouse (UHID) | Preferred direct mouse path. The ADB shell identity must be able to open `/dev/uhid`; OpenDroid probes this at runtime and registers a five-button relative HID mouse without root |
+| Touchscreen tap mouse | Direct touch tap and drag emulation. Mouse clicks/drags act directly as touch points with zero hover pointers or cursor rendering on Android |
 | SDK mouse compatibility | Optional explicit fallback with absolute hover/button/scroll injection. Some Android/app combinations can interpret a primary click as touch-compatible, so it is never selected silently |
 | Audio capture | Optional; Android 11+ for computer playback. Android 11 must be unlocked when capture starts; Android 12+ normally works immediately |
 | Device/host audio duplication | Optional; Android 13+ `playback` capture with scrcpy `audioDup`. Individual apps may opt out of playback capture |
