@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import type {
   MouseInputMode,
   SessionStats,
@@ -40,7 +41,7 @@ function mouseLabel(
   return "Mouse: Off";
 }
 
-export function StageStatusBar({
+export const StageStatusBar = memo(function StageStatusBar({
   streaming,
   stats,
   audio,
@@ -98,4 +99,4 @@ export function StageStatusBar({
       </div>
     </div>
   );
-}
+});

@@ -171,6 +171,7 @@ export default function App() {
     useState<AdbTransportSnapshot>(INITIAL_TRANSPORT);
   const [sessionState, setSessionState] =
     useState<ScrcpySessionSnapshot>(INITIAL_SESSION);
+  const [hasErrors, setHasErrors] = useState(false);
   const [entries, setEntries] = useState<readonly DiagnosticEntry[]>([]);
   const [quality, setQualityState] = useState<StreamQuality>(() =>
     cloneStreamQuality(),
@@ -663,9 +664,14 @@ export default function App() {
   useEffect(() => session.subscribe(setSessionState), [session]);
   useEffect(() => session.subscribeClipboard(setRemoteClipboard), [session]);
   useEffect(
-    () => diagnostics.subscribe((next) => setEntries([...next])),
+    () => diagnostics.subscribeErrors(setHasErrors),
     [diagnostics],
   );
+  useEffect(() => {
+    if (panel === "diagnostics") {
+      return diagnostics.subscribe((next) => setEntries([...next]));
+    }
+  }, [diagnostics, panel]);
 
   useEffect(() => {
     if (!browserReady || !settingsReady) return;
@@ -1865,7 +1871,7 @@ export default function App() {
           <WorkspaceTabs
             active={panel}
             mappingCount={profile?.mappings.length ?? 0}
-            hasErrors={entries.some((entry) => entry.level === "error")}
+            hasErrors={hasErrors}
             onChange={setPanel}
           />
 

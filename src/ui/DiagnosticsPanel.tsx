@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import type {
   BrowserCapabilities,
   CapabilityCheck,
@@ -18,7 +19,7 @@ export interface DiagnosticsPanelProps {
   onClear(): void;
 }
 
-export function DiagnosticsPanel({
+export const DiagnosticsPanel = memo(function DiagnosticsPanel({
   entries,
   checks,
   android,
@@ -136,5 +137,5 @@ export function DiagnosticsPanel({
       </section>
     </div>
   );
-}
+});
 

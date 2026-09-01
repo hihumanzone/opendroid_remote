@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
+import { memo, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 
 import type { Size } from "../core/types";
 import type { GameMapping, GameProfile } from "../profiles/schema";
@@ -75,7 +75,7 @@ function radiusPixels(mapping: GameMapping, size: Size): number | undefined {
   return mapping.radius * Math.min(size.width, size.height) * 2;
 }
 
-export function MappingOverlay({
+export const MappingOverlay = memo(function MappingOverlay({
   profile,
   selectedId,
   editing,
@@ -205,5 +205,5 @@ export function MappingOverlay({
       })}
     </div>
   );
-}
+});
 

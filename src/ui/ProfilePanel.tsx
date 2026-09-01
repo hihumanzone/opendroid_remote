@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { memo, useRef } from "react";
 
 import type { GameProfile } from "../profiles/schema";
 import type { ImportPreferences } from "../settings/AppSettings";
@@ -23,7 +23,7 @@ export interface ProfilePanelProps {
   onSave(): void;
 }
 
-export function ProfilePanel({
+export const ProfilePanel = memo(function ProfilePanel({
   profiles,
   active,
   onSelect,
@@ -299,4 +299,4 @@ export function ProfilePanel({
       </section>
     </div>
   );
-}
+});

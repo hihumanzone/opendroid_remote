@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import type { GameMapping, GameProfile } from "../profiles/schema";
 import type { ControlMode } from "../input/controlMode";
 import { MappingInspector } from "./MappingInspector";
@@ -29,7 +30,7 @@ export interface MappingPanelProps {
   onDelete(id: string): void;
 }
 
-export function MappingPanel({
+export const MappingPanel = memo(function MappingPanel({
   profile,
   selectedId,
   mode,
@@ -135,4 +136,4 @@ export function MappingPanel({
       )}
     </div>
   );
-}
+});

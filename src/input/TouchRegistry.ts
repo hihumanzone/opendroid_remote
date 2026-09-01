@@ -24,7 +24,10 @@ export interface ActiveTouch {
 }
 
 function safePoint(point: NormalizedPoint): NormalizedPoint {
-  return { x: clamp(point.x), y: clamp(point.y) };
+  const x = clamp(point.x);
+  const y = clamp(point.y);
+  if (x === point.x && y === point.y) return point;
+  return { x, y };
 }
 
 export class TouchRegistry {

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { AdbTransportSnapshot } from "../adb/WebUsbAdbTransport";
 import {
   connectionPhaseLabel,
@@ -40,7 +41,7 @@ export interface ConnectionChromeProps {
   onShowDiagnostics(): void;
 }
 
-export function ConnectionChrome({
+export const ConnectionChrome = memo(function ConnectionChrome({
   transport,
   browserReady,
   missingCapabilities,
@@ -342,4 +343,4 @@ export function ConnectionChrome({
       ) : null}
     </>
   );
-}
+});

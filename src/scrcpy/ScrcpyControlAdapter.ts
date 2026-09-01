@@ -37,6 +37,9 @@ export class ScrcpyControlAdapter implements SyntheticTouchSink {
   #uhidMouse?: UhidMouseDevice;
   readonly #sdkPressedButtons = new Set<number>();
   #sdkPointer: NormalizedPoint = { x: 0.5, y: 0.5 };
+  #lastVideoWidth = 0;
+  #lastVideoHeight = 0;
+  #cachedProtocolSize: Size = { width: 0, height: 0 };
 
   constructor(
     private readonly controller: ScrcpyControlMessageWriter,
@@ -366,11 +369,21 @@ export class ScrcpyControlAdapter implements SyntheticTouchSink {
     if (size.width <= 0 || size.height <= 0) {
       throw new Error("Video dimensions are not available yet");
     }
+    if (
+      size.width === this.#lastVideoWidth &&
+      size.height === this.#lastVideoHeight &&
+      this.#cachedProtocolSize.width > 0
+    ) {
+      return this.#cachedProtocolSize;
+    }
+    this.#lastVideoWidth = size.width;
+    this.#lastVideoHeight = size.height;
     const scale = Math.min(1, 65_535 / Math.max(size.width, size.height));
-    return {
+    this.#cachedProtocolSize = {
       width: Math.max(1, Math.round(size.width * scale)),
       height: Math.max(1, Math.round(size.height * scale)),
     };
+    return this.#cachedProtocolSize;
   }
 
   #touchAction(

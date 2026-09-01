@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  memo,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -98,7 +99,7 @@ function buttonMask(button: number): number {
   }
 }
 
-export function VideoStage({
+export const VideoStage = memo(function VideoStage({
   canvasRef,
   surfaceRef,
   fullscreenRef,
@@ -131,6 +132,7 @@ export function VideoStage({
   const pointers = useRef(new PointerIdAllocator(64n, 127n));
   const active = useRef(new Map<number, DirectPointer>());
   const capturedMouse = useRef(new Set<number>());
+  const surfaceRectRef = useRef<DOMRect | null>(null);
   const [surfaceSize, setSurfaceSize] = useState<Size>({ width: 0, height: 0 });
   const videoWidth = videoSize.width;
   const videoHeight = videoSize.height;
@@ -140,6 +142,10 @@ export function VideoStage({
     const container = fitRef.current;
     if (!container) return;
     const update = () => {
+      const surface = surfaceRef.current;
+      if (surface) {
+        surfaceRectRef.current = surface.getBoundingClientRect();
+      }
       const rect = container.getBoundingClientRect();
       const content =
         videoWidth > 0 && videoHeight > 0
@@ -158,18 +164,22 @@ export function VideoStage({
     const observer = new ResizeObserver(update);
     observer.observe(container);
 
-    const handleFullscreenChange = () => {
+    const handleLayoutChange = () => {
       update();
     };
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    document.addEventListener("fullscreenchange", handleLayoutChange);
+    document.addEventListener("webkitfullscreenchange", handleLayoutChange);
+    window.addEventListener("resize", handleLayoutChange);
+    window.addEventListener("scroll", handleLayoutChange, { passive: true });
 
     return () => {
       observer.disconnect();
-      document.removeEventListener("fullscreenchange", handleFullscreenChange);
-      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+      document.removeEventListener("fullscreenchange", handleLayoutChange);
+      document.removeEventListener("webkitfullscreenchange", handleLayoutChange);
+      window.removeEventListener("resize", handleLayoutChange);
+      window.removeEventListener("scroll", handleLayoutChange);
     };
-  }, [videoWidth, videoHeight]);
+  }, [surfaceRef, videoWidth, videoHeight]);
 
   useEffect(() => {
     const surface = surfaceRef.current;
@@ -298,10 +308,14 @@ export function VideoStage({
   const pointFor = (
     event: ReactPointerEvent<HTMLDivElement>,
     clampOutside = true,
+    customClientPos?: { x: number; y: number },
   ) => {
-    const rect = event.currentTarget.getBoundingClientRect();
+    const rect =
+      surfaceRectRef.current ??
+      event.currentTarget.getBoundingClientRect();
+    const client = customClientPos ?? { x: event.clientX, y: event.clientY };
     return clientToNormalizedContained(
-      { x: event.clientX, y: event.clientY },
+      client,
       {
         left: rect.left,
         top: rect.top,
@@ -335,6 +349,7 @@ export function VideoStage({
   };
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    surfaceRectRef.current = event.currentTarget.getBoundingClientRect();
     event.currentTarget.focus({ preventScroll: true });
     if (!streaming || editing) return;
     event.preventDefault();
@@ -425,6 +440,33 @@ export function VideoStage({
     const pointer = active.current.get(event.pointerId);
     if (!pointer || editing || !streaming) return;
     event.preventDefault();
+    const rawEvent = event.nativeEvent;
+    if (
+      "getCoalescedEvents" in rawEvent &&
+      typeof rawEvent.getCoalescedEvents === "function"
+    ) {
+      const coalesced = rawEvent.getCoalescedEvents();
+      if (coalesced && coalesced.length > 1) {
+        for (let i = 0; i < coalesced.length; i++) {
+          const sample = coalesced[i]!;
+          const point = pointFor(event, true, {
+            x: sample.clientX,
+            y: sample.clientY,
+          });
+          if (!point) continue;
+          pointer.point = point;
+          pointer.buttons = PRIMARY_TOUCH_BUTTON;
+          onDirectTouch(
+            "move",
+            pointer.id,
+            point,
+            pointer.buttons,
+            PRIMARY_TOUCH_BUTTON,
+          );
+        }
+        return;
+      }
+    }
     const point = pointFor(event);
     if (!point) return;
     pointer.point = point;
@@ -553,4 +595,4 @@ export function VideoStage({
       </div>
     </section>
   );
-}
+});

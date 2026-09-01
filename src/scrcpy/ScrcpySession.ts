@@ -219,10 +219,6 @@ export class ScrcpySession {
   #control?: ScrcpyControlAdapter;
   readonly #audioPlayer = new PcmAudioPlayer();
   #closing = false;
-  #videoPipe?: Promise<void>;
-  #audioTask?: Promise<void>;
-  #outputTask?: Promise<void>;
-  #clipboardTask?: Promise<void>;
   #statsTimer?: number;
   #capabilities?: AndroidCapabilities;
   #capabilitiesAdb?: Adb;
@@ -726,7 +722,7 @@ export class ScrcpySession {
     const client = await AdbScrcpyClient.start(adb, DefaultServerPath, options);
     this.#client = client;
     this.#sessionAdb = adb;
-    this.#outputTask = this.#consumeOutput(client);
+    void this.#consumeOutput(client);
     this.#setAudio(
       quality.audio.enabled
         ? {
@@ -737,7 +733,7 @@ export class ScrcpySession {
         : { status: "off", message: "Audio streaming is disabled." },
     );
     if (quality.audio.enabled) {
-      this.#audioTask = this.#consumeAudio(
+      void this.#consumeAudio(
         client,
         quality.audio.bufferMs,
       ).catch((error) => {
@@ -828,7 +824,7 @@ export class ScrcpySession {
       };
     });
     const rawVideoPipe = video.stream.pipeTo(decoder.writable);
-    this.#videoPipe = rawVideoPipe.catch((error) => {
+    void rawVideoPipe.catch((error) => {
       if (this.#closing || this.#client !== client) return;
       this.#diagnostics.error(
         "codec",
@@ -868,7 +864,7 @@ export class ScrcpySession {
         },
       });
     });
-    this.#clipboardTask = this.#consumeClipboard(client);
+    void this.#consumeClipboard(client);
     this.#setSnapshot({
       phase: "streaming",
       message: `Mirroring ${size.width}×${size.height} via ${candidate.reason} over ${tunnelLabel}.`,
@@ -886,14 +882,27 @@ export class ScrcpySession {
     });
     this.#statsTimer = window.setInterval(() => {
       if (!this.#decoder) return;
+      const decoder = this.#decoder;
+      const rendered = decoder.framesRendered;
+      const skipped = decoder.framesSkipped;
+      const w = decoder.width || this.#snapshot.stats.width;
+      const h = decoder.height || this.#snapshot.stats.height;
+      if (
+        rendered === this.#snapshot.stats.framesRendered &&
+        skipped === this.#snapshot.stats.framesSkipped &&
+        w === this.#snapshot.stats.width &&
+        h === this.#snapshot.stats.height
+      ) {
+        return;
+      }
       this.#setSnapshot({
         ...this.#snapshot,
         stats: {
           ...this.#snapshot.stats,
-          framesRendered: this.#decoder.framesRendered,
-          framesSkipped: this.#decoder.framesSkipped,
-          width: this.#decoder.width || this.#snapshot.stats.width,
-          height: this.#decoder.height || this.#snapshot.stats.height,
+          framesRendered: rendered,
+          framesSkipped: skipped,
+          width: w,
+          height: h,
         },
       });
     }, 1_000);
@@ -1126,10 +1135,6 @@ export class ScrcpySession {
     }
     this.#decoder?.dispose();
     this.#decoder = undefined;
-    this.#videoPipe = undefined;
-    this.#audioTask = undefined;
-    this.#outputTask = undefined;
-    this.#clipboardTask = undefined;
     this.#audio = { status: "off" };
   }
 

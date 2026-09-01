@@ -13,10 +13,6 @@ export interface DecodedPcmChunk {
   carry: Uint8Array<ArrayBufferLike>;
 }
 
-function sampleToFloat(sample: number): number {
-  return sample < 0 ? sample / 32_768 : sample / 32_767;
-}
-
 /**
  * scrcpy raw audio is interleaved, signed 16-bit little-endian stereo PCM.
  * A packet is not guaranteed to end on a complete four-byte stereo frame, so
@@ -39,12 +35,26 @@ export function decodePcmS16LeStereo(
   const frameCount = completeByteLength / 4;
   const left = new Float32Array(frameCount);
   const right = new Float32Array(frameCount);
-  const view = new DataView(bytes.buffer, bytes.byteOffset, completeByteLength);
 
-  for (let frame = 0; frame < frameCount; frame += 1) {
-    const offset = frame * 4;
-    left[frame] = sampleToFloat(view.getInt16(offset, true));
-    right[frame] = sampleToFloat(view.getInt16(offset + 2, true));
+  if (bytes.byteOffset % 2 === 0) {
+    const s16 = new Int16Array(bytes.buffer, bytes.byteOffset, completeByteLength / 2);
+    for (let frame = 0; frame < frameCount; frame += 1) {
+      const idx = frame * 2;
+      const l = s16[idx]!;
+      const r = s16[idx + 1]!;
+      left[frame] = l < 0 ? l / 32_768 : l / 32_767;
+      right[frame] = r < 0 ? r / 32_768 : r / 32_767;
+    }
+  } else {
+    for (let frame = 0; frame < frameCount; frame += 1) {
+      const offset = frame * 4;
+      const rawL = bytes[offset]! | (bytes[offset + 1]! << 8);
+      const rawR = bytes[offset + 2]! | (bytes[offset + 3]! << 8);
+      const l = (rawL << 16) >> 16;
+      const r = (rawR << 16) >> 16;
+      left[frame] = l < 0 ? l / 32_768 : l / 32_767;
+      right[frame] = r < 0 ? r / 32_768 : r / 32_767;
+    }
   }
 
   return {
@@ -344,8 +354,13 @@ export class PcmAudioPlayer {
       this.#nextStartTime = 0;
     }
     const buffer = context.createBuffer(2, left.length, sampleRate);
-    buffer.getChannelData(0).set(left);
-    buffer.getChannelData(1).set(right);
+    if ("copyToChannel" in buffer && typeof buffer.copyToChannel === "function") {
+      buffer.copyToChannel(left as Float32Array<ArrayBuffer>, 0);
+      buffer.copyToChannel(right as Float32Array<ArrayBuffer>, 1);
+    } else {
+      buffer.getChannelData(0).set(left);
+      buffer.getChannelData(1).set(right);
+    }
     const source = context.createBufferSource();
     source.buffer = buffer;
     source.connect(gain);

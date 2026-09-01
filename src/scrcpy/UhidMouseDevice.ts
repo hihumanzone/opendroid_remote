@@ -282,15 +282,12 @@ export class UhidMouseDevice {
     wheelY: number,
     wheelX: number,
   ): Promise<void> {
-    return this.#transport.input(
-      UHID_MOUSE_ID,
-      new Uint8Array([
-        this.#buttons,
-        signedByte(deltaX),
-        signedByte(deltaY),
-        signedByte(wheelY),
-        signedByte(wheelX),
-      ]),
-    );
+    const report = new Uint8Array(5);
+    report[0] = this.#buttons;
+    report[1] = signedByte(deltaX);
+    report[2] = signedByte(deltaY);
+    report[3] = signedByte(wheelY);
+    report[4] = signedByte(wheelX);
+    return this.#transport.input(UHID_MOUSE_ID, report);
   }
 }

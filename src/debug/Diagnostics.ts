@@ -83,7 +83,9 @@ export class Diagnostics {
   readonly #startedAt = performance.now();
   readonly #entries: DiagnosticEntry[] = [];
   readonly #listeners = new Set<DiagnosticListener>();
+  readonly #errorListeners = new Set<(hasErrors: boolean) => void>();
   #nextId = 1;
+  #hasErrors = false;
 
   constructor(private readonly maxEntries = 600) {}
 
@@ -91,10 +93,20 @@ export class Diagnostics {
     return this.#entries;
   }
 
+  get hasErrors(): boolean {
+    return this.#hasErrors;
+  }
+
   subscribe(listener: DiagnosticListener): () => void {
     this.#listeners.add(listener);
     listener(this.#entries);
     return () => this.#listeners.delete(listener);
+  }
+
+  subscribeErrors(listener: (hasErrors: boolean) => void): () => void {
+    this.#errorListeners.add(listener);
+    listener(this.#hasErrors);
+    return () => this.#errorListeners.delete(listener);
   }
 
   record(
@@ -116,6 +128,10 @@ export class Diagnostics {
     });
     if (this.#entries.length > this.maxEntries) {
       this.#entries.splice(0, this.#entries.length - this.maxEntries);
+    }
+    if (level === "error" && !this.#hasErrors) {
+      this.#hasErrors = true;
+      this.#emitErrors();
     }
     this.#emit();
   }
@@ -158,6 +174,10 @@ export class Diagnostics {
 
   clear(): void {
     this.#entries.length = 0;
+    if (this.#hasErrors) {
+      this.#hasErrors = false;
+      this.#emitErrors();
+    }
     this.#emit();
   }
 
@@ -178,6 +198,12 @@ export class Diagnostics {
   #emit(): void {
     for (const listener of this.#listeners) {
       listener(this.#entries);
+    }
+  }
+
+  #emitErrors(): void {
+    for (const listener of this.#errorListeners) {
+      listener(this.#hasErrors);
     }
   }
 }

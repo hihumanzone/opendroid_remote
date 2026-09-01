@@ -19,12 +19,13 @@ export function joystickVector(
 ): JoystickVector {
   const rawX = Number(pressed.has(keys.right)) - Number(pressed.has(keys.left));
   const rawY = Number(pressed.has(keys.down)) - Number(pressed.has(keys.up));
-  const rawMagnitude = Math.hypot(rawX, rawY);
-  if (rawMagnitude === 0) return { x: 0, y: 0, magnitude: 0 };
-  const scale = rawMagnitude > 1 ? 1 / rawMagnitude : 1;
+  if (rawX === 0 && rawY === 0) return { x: 0, y: 0, magnitude: 0 };
+  if (rawX === 0 || rawY === 0) {
+    return { x: rawX, y: rawY, magnitude: 1 };
+  }
   return {
-    x: rawX * scale,
-    y: rawY * scale,
+    x: rawX * Math.SQRT1_2,
+    y: rawY * Math.SQRT1_2,
     magnitude: 1,
   };
 }
@@ -47,8 +48,9 @@ export function smoothVector(
   target: JoystickVector,
   factor: number,
 ): JoystickVector {
-  const t = clamp(factor);
-  const x = current.x + (target.x - current.x) * t;
-  const y = current.y + (target.y - current.y) * t;
+  if (factor >= 1) return target;
+  if (factor <= 0) return current;
+  const x = current.x + (target.x - current.x) * factor;
+  const y = current.y + (target.y - current.y) * factor;
   return { x, y, magnitude: Math.min(1, Math.hypot(x, y)) };
 }

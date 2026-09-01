@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import {
   IconBack,
   IconHome,
@@ -61,7 +61,7 @@ export interface AndroidControlDockProps {
   onFullscreen(): void;
 }
 
-export function AndroidControlDock({
+export const AndroidControlDock = memo(function AndroidControlDock({
   streaming,
   fullscreenSupported,
   clipboardReadSupported,
@@ -150,4 +150,4 @@ export function AndroidControlDock({
       />
     </nav>
   );
-}
+});

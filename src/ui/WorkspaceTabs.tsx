@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import {
   IconLayers,
   IconSliders,
@@ -55,7 +55,7 @@ export interface WorkspaceTabsProps {
   onChange(panel: WorkspacePanelId): void;
 }
 
-export function WorkspaceTabs({
+export const WorkspaceTabs = memo(function WorkspaceTabs({
   active,
   mappingCount,
   hasErrors,
@@ -95,4 +95,4 @@ export function WorkspaceTabs({
       />
     </nav>
   );
-}
+});

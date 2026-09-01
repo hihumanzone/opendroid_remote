@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import type {
   AudioCodecPreference,
   SessionStats,
@@ -85,7 +86,7 @@ function applyPerformancePreset(
   }
 }
 
-export function StreamPanel({
+export const StreamPanel = memo(function StreamPanel({
   quality,
   connection,
   capabilities,
@@ -875,4 +876,4 @@ export function StreamPanel({
       </section>
     </div>
   );
-}
+});
