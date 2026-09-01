@@ -43,7 +43,8 @@ export function IconRecents({ size = 18, ...props }: IconProps) {
 export function IconRotate({ size = 18, ...props }: IconProps) {
   return (
     <svg {...defaultProps} width={size} height={size} {...props}>
-      <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+      <polyline points="23 4 23 10 17 10" />
+      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
     </svg>
   );
 }
@@ -271,7 +272,8 @@ export function IconMappingType({ type, size = 18, className }: { type: string; 
     case "repeat":
       return (
         <svg {...defaultProps} width={size} height={size} className={className}>
-          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+          <polyline points="23 4 23 10 17 10" />
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
         </svg>
       );
     case "swipe":

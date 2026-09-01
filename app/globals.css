@@ -290,10 +290,16 @@ a:hover {
   font-size: 11px;
   font-weight: 700;
   gap: var(--space-2);
+  justify-content: center;
   letter-spacing: 0.05em;
+  line-height: 1;
   padding: 5px 12px;
   text-transform: uppercase;
   transition: all 200ms ease;
+}
+
+.connection-pill svg {
+  flex-shrink: 0;
 }
 
 .status-dot {
@@ -301,6 +307,7 @@ a:hover {
   border-radius: 50%;
   box-shadow: 0 0 0 3px hsla(0, 0%, 50%, 0.15);
   display: inline-block;
+  flex-shrink: 0;
   height: 8px;
   width: 8px;
 }
@@ -735,7 +742,7 @@ a:hover {
   display: flex;
   flex: 1 1 auto;
   justify-content: center;
-  min-height: 480px;
+  min-height: 450px;
   overflow: hidden;
   position: relative;
   box-shadow: var(--shadow-md);
@@ -1754,7 +1761,7 @@ a:hover {
   border-radius: var(--radius-lg);
   display: flex;
   flex: 1 1 auto;
-  min-height: 480px;
+  min-height: 450px;
   overflow: hidden;
   position: relative;
   box-shadow: var(--shadow-md);
