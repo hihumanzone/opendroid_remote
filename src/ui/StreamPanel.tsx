@@ -874,10 +874,10 @@ export const StreamPanel = memo(function StreamPanel({
             {capabilities!.displays.map((display) => (
               <li key={display.id}>
                 <span className={`mini-dot ${display.focused ? "ok" : ""}`} />
-                <span>
-                  Display {display.id}
+                <div className="capability-item-info">
+                  <strong>Display {display.id}</strong>
                   <small>{display.resolution ?? "size not reported"}</small>
-                </span>
+                </div>
                 {display.focused ? <em>Focused</em> : null}
               </li>
             ))}

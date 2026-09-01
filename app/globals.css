@@ -1175,8 +1175,11 @@ a:hover {
 .mini-dot {
   background: var(--faint);
   border-radius: 50%;
+  display: inline-block;
   height: 6px;
   width: 6px;
+  flex: 0 0 6px;
+  flex-shrink: 0;
 }
 
 .mini-dot.ok {
@@ -1793,12 +1796,26 @@ a:hover {
   padding: 8px 12px;
 }
 
-.capability-list li > span {
+.capability-list li .mini-dot {
+  flex: 0 0 6px;
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+}
+
+.capability-item-info,
+.capability-list li > span:not(.mini-dot) {
   display: flex;
   flex-direction: column;
   gap: 2px;
   flex: 1;
   min-width: 0;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.capability-item-info strong {
   font-size: 13px;
   font-weight: 650;
   color: var(--ink);
