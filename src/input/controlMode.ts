@@ -102,3 +102,37 @@ export function shouldCaptureMouseButton(
 ): boolean {
   return mode === "play" && buttons.has(button);
 }
+
+/**
+ * Determines if pointer movement should be ignored for relative/hover processing.
+ * When Android mouse mode is physical UHID and the mouse is not captured,
+ * desktop hover movement must not move the Android cursor.
+ */
+export function shouldIgnoreMouseMovement(
+  mouseMode: string,
+  pointerLocked: boolean,
+): boolean {
+  return mouseMode === "uhid" && !pointerLocked;
+}
+
+/**
+ * Determines if a pointerdown event should capture the mouse pointer
+ * instead of registering a click to Android.
+ * When in UHID mode and the mouse is not captured, clicking the screen
+ * captures the mouse without firing any click in Android.
+ */
+export function shouldInitiatePointerLock(
+  mouseMode: string,
+  pointerLocked: boolean,
+  hasMouseLook = false,
+  cameraLockActive = false,
+  button = 0,
+): boolean {
+  if (mouseMode === "uhid" && !pointerLocked) {
+    return true;
+  }
+  if (hasMouseLook && cameraLockActive && !pointerLocked && button === 0) {
+    return true;
+  }
+  return false;
+}

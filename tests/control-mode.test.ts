@@ -6,6 +6,8 @@ import {
   mappedMouseButtons,
   routeKeyboardInput,
   shouldCaptureMouseButton,
+  shouldIgnoreMouseMovement,
+  shouldInitiatePointerLock,
 } from "../src/input/controlMode";
 import {
   createMapping,
@@ -80,5 +82,35 @@ describe("Edit and Play input routing", () => {
     profile.mappings = [];
     expect([...mappedKeyboardCodes(profile, "landscape")]).toEqual([]);
     expect(routeKeyboardInput("play", "Escape", mappedKeyboardCodes(profile, "landscape"))).toBe("android");
+  });
+
+  describe("Physical UHID mouse capture routing", () => {
+    it("ignores hover mouse movement when UHID mouse is not captured", () => {
+      expect(shouldIgnoreMouseMovement("uhid", false)).toBe(true);
+      expect(shouldIgnoreMouseMovement("uhid", true)).toBe(false);
+      expect(shouldIgnoreMouseMovement("sdk", false)).toBe(false);
+      expect(shouldIgnoreMouseMovement("touch", false)).toBe(false);
+      expect(shouldIgnoreMouseMovement("disabled", false)).toBe(false);
+    });
+
+    it("initiates pointer lock without clicking Android when UHID mouse is uncaptured", () => {
+      // Uncaptured UHID mouse clicking to capture
+      expect(shouldInitiatePointerLock("uhid", false, false, false, 0)).toBe(true);
+      expect(shouldInitiatePointerLock("uhid", false, false, false, 1)).toBe(true);
+      expect(shouldInitiatePointerLock("uhid", false, false, false, 2)).toBe(true);
+
+      // Captured UHID mouse clicks should register directly in Android
+      expect(shouldInitiatePointerLock("uhid", true, false, false, 0)).toBe(false);
+      expect(shouldInitiatePointerLock("uhid", true, false, false, 2)).toBe(false);
+
+      // Other modes should not trigger capture on click
+      expect(shouldInitiatePointerLock("sdk", false, false, false, 0)).toBe(false);
+      expect(shouldInitiatePointerLock("touch", false, false, false, 0)).toBe(false);
+
+      // Camera lock active with mouse-look initiates pointer lock on left click
+      expect(shouldInitiatePointerLock("sdk", false, true, true, 0)).toBe(true);
+      expect(shouldInitiatePointerLock("sdk", false, true, true, 2)).toBe(false);
+      expect(shouldInitiatePointerLock("sdk", true, true, true, 0)).toBe(false);
+    });
   });
 });

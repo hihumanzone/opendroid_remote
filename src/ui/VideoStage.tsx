@@ -22,7 +22,11 @@ import {
 } from "../coordinates/CoordinateTransform";
 import { PointerIdAllocator } from "../input/PointerIdAllocator";
 import type { ControlMode } from "../input/controlMode";
-import { shouldCaptureMouseButton } from "../input/controlMode";
+import {
+  shouldCaptureMouseButton,
+  shouldIgnoreMouseMovement,
+  shouldInitiatePointerLock,
+} from "../input/controlMode";
 import type { TouchPhase } from "../input/TouchRegistry";
 import { normalizeWheelDelta } from "../input/wheel";
 import type { GameProfile } from "../profiles/schema";
@@ -122,7 +126,7 @@ export const VideoStage = memo(function VideoStage({
   onGameMouseDown,
   onGameMouseUp,
   onMouseMove,
-  onMouseMoveRelative,
+  onMouseMoveRelative: _onMouseMoveRelative,
   onMouseButton,
   onReleaseMouseButtons,
   onScroll,
@@ -132,6 +136,7 @@ export const VideoStage = memo(function VideoStage({
   const pointers = useRef(new PointerIdAllocator(64n, 127n));
   const active = useRef(new Map<number, DirectPointer>());
   const capturedMouse = useRef(new Set<number>());
+  const capturingMouseButtons = useRef(new Set<number>());
   const surfaceRectRef = useRef<DOMRect | null>(null);
   const [surfaceSize, setSurfaceSize] = useState<Size>({ width: 0, height: 0 });
   const videoWidth = videoSize.width;
@@ -193,6 +198,14 @@ export const VideoStage = memo(function VideoStage({
       // that Android scrolling never bubbles into the surrounding page.
       event.preventDefault();
       event.stopPropagation();
+
+      const isLocked =
+        pointerLocked ||
+        (typeof document !== "undefined" &&
+          document.pointerLockElement !== null &&
+          document.pointerLockElement === surface);
+
+      if (mouseMode === "uhid" && !isLocked) return;
 
       const rect = surface.getBoundingClientRect();
       const point = clientToNormalizedContained(
@@ -263,6 +276,7 @@ export const VideoStage = memo(function VideoStage({
   useEffect(() => {
     if (!pointerLocked) {
       releaseCapturedMappings();
+      capturingMouseButtons.current.clear();
     }
 
     const handleWindowPointerUp = (event: Event) => {
@@ -272,6 +286,7 @@ export const VideoStage = memo(function VideoStage({
         pointerEvent.pointerType === "mouse"
       ) {
         const mouseEvent = event as MouseEvent;
+        capturingMouseButtons.current.delete(mouseEvent.button);
         if (capturedMouse.current.delete(mouseEvent.button)) {
           onGameMouseUp(mouseEvent.button);
         }
@@ -285,6 +300,7 @@ export const VideoStage = memo(function VideoStage({
     };
 
     const handleWindowBlur = () => {
+      capturingMouseButtons.current.clear();
       releaseCapturedMappings();
       if (!pointerLocked) {
         onReleaseMouseButtons();
@@ -365,11 +381,34 @@ export const VideoStage = memo(function VideoStage({
     if (!streaming || editing) return;
     event.preventDefault();
     if (event.pointerType === "mouse") {
-      try {
-        event.currentTarget.setPointerCapture(event.pointerId);
-      } catch {
-        // Pointer capture may fail in synthetic environments or if pointer is invalid.
+      const isLocked =
+        pointerLocked ||
+        (typeof document !== "undefined" &&
+          document.pointerLockElement !== null &&
+          document.pointerLockElement === (surfaceRef.current ?? event.currentTarget));
+
+      if (
+        shouldInitiatePointerLock(
+          mouseMode,
+          isLocked,
+          hasMouseLook,
+          cameraLockActive,
+          event.button,
+        )
+      ) {
+        capturingMouseButtons.current.add(event.button);
+        onRequestPointerLock();
+        return;
       }
+
+      if (!isLocked && mouseMode !== "uhid") {
+        try {
+          event.currentTarget.setPointerCapture(event.pointerId);
+        } catch {
+          // Pointer capture may fail in synthetic environments or if pointer is invalid.
+        }
+      }
+
       if (
         shouldCaptureMouseButton(
           mode,
@@ -379,12 +418,6 @@ export const VideoStage = memo(function VideoStage({
       ) {
         capturedMouse.current.add(event.button);
         onGameMouseDown(event.button);
-        if (
-          event.button === 0 &&
-          ((hasMouseLook && cameraLockActive) || (mouseMode === "uhid" && !pointerLocked))
-        ) {
-          onRequestPointerLock();
-        }
         return;
       }
       if (mouseMode === "disabled") return;
@@ -412,15 +445,6 @@ export const VideoStage = memo(function VideoStage({
         true,
         event.buttons || buttonMask(event.button),
       );
-      if (
-        mouseMode === "uhid" &&
-        !pointerLocked &&
-        event.button === 0
-      ) {
-        onRequestPointerLock();
-      } else if (hasMouseLook && cameraLockActive && event.button === 0) {
-        onRequestPointerLock();
-      }
       return;
     }
     const point = pointFor(event, false);
@@ -444,18 +468,20 @@ export const VideoStage = memo(function VideoStage({
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.pointerType === "mouse") {
+      const isLocked =
+        pointerLocked ||
+        (typeof document !== "undefined" &&
+          document.pointerLockElement !== null &&
+          document.pointerLockElement === (surfaceRef.current ?? event.currentTarget));
+
       if (
         editing ||
         !streaming ||
-        pointerLocked ||
-        document.pointerLockElement === event.currentTarget
+        isLocked
       ) {
         return;
       }
-      if (mouseMode === "uhid") {
-        if (event.movementX || event.movementY) {
-          onMouseMoveRelative(event.movementX, event.movementY);
-        }
+      if (shouldIgnoreMouseMovement(mouseMode, isLocked)) {
         return;
       }
       if (mouseMode === "disabled") return;
@@ -560,6 +586,19 @@ export const VideoStage = memo(function VideoStage({
             onPointerMove={handlePointerMove}
             onPointerUp={(event) => {
               if (event.pointerType === "mouse") {
+                if (capturingMouseButtons.current.delete(event.button)) {
+                  return;
+                }
+                const isLocked =
+                  pointerLocked ||
+                  (typeof document !== "undefined" &&
+                    document.pointerLockElement !== null &&
+                    document.pointerLockElement === (surfaceRef.current ?? event.currentTarget));
+
+                if (mouseMode === "uhid" && !isLocked) {
+                  return;
+                }
+
                 try {
                   if (event.currentTarget.hasPointerCapture(event.pointerId)) {
                     event.currentTarget.releasePointerCapture(event.pointerId);
@@ -588,6 +627,7 @@ export const VideoStage = memo(function VideoStage({
             }}
             onPointerCancel={(event) => {
               if (event.pointerType === "mouse") {
+                capturingMouseButtons.current.delete(event.button);
                 releaseCapturedMappings();
                 if (mouseMode === "touch") {
                   releasePointer(event, "cancel");
@@ -600,6 +640,7 @@ export const VideoStage = memo(function VideoStage({
             }}
             onLostPointerCapture={(event) => {
               if (event.pointerType === "mouse") {
+                capturingMouseButtons.current.delete(event.button);
                 releaseCapturedMappings();
                 if (mouseMode === "touch") {
                   releasePointer(event, "cancel");
