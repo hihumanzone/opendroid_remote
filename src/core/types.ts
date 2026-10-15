@@ -157,6 +157,7 @@ export interface SessionStats {
   framesSkipped: number;
   width: number;
   height: number;
+  fps?: number;
   codec?: VideoCodec;
   encoder?: string;
   displayId?: number;

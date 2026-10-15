@@ -51,6 +51,71 @@ describe("Mapping UX & Control Enhancements", () => {
       expect(clampHelper("", 0.09, 0.01, 0.5)).toBe(0.09);
       expect(clampHelper("abc", 0.09, 0.01, 0.5)).toBe(0.09);
     });
+
+    it("validates boundary ranges and precision across all mapping numeric properties", () => {
+      // Tap duration validation
+      const tap = createMapping("tap");
+      tap.durationMs = 20; // min
+      expect(isGameMapping(tap)).toBe(true);
+      tap.durationMs = 1000; // max
+      expect(isGameMapping(tap)).toBe(true);
+
+      // Repeat interval & press
+      const repeat = createMapping("repeat");
+      repeat.intervalMs = 40;
+      repeat.pressMs = 15;
+      expect(isGameMapping(repeat)).toBe(true);
+      repeat.pressMs = 40; // equal to interval
+      expect(isGameMapping(repeat)).toBe(true);
+      repeat.pressMs = 50; // press > interval is invalid
+      expect(isGameMapping(repeat)).toBe(false);
+
+      // Swipe duration & endpoints
+      const swipe = createMapping("swipe");
+      swipe.durationMs = 40;
+      swipe.end = { x: 0, y: 1 };
+      expect(isGameMapping(swipe)).toBe(true);
+
+      // Joystick smoothing
+      const joystick = createMapping("joystick");
+      joystick.smoothing = 0;
+      expect(isGameMapping(joystick)).toBe(true);
+      joystick.smoothing = 1;
+      expect(isGameMapping(joystick)).toBe(true);
+
+      // Mouse look sensitivity & radius
+      const look = createMapping("mouse-look");
+      look.sensitivity = 0.0001;
+      look.radius = 0.02;
+      expect(isGameMapping(look)).toBe(true);
+      look.sensitivity = 0.02;
+      look.radius = 0.5;
+      expect(isGameMapping(look)).toBe(true);
+    });
+
+    it("correctly counts and categorizes mappings for filter tabs", () => {
+      const profile = createProfile("Test Categories");
+      profile.mappings = [
+        createMapping("joystick"),
+        createMapping("tap"),
+        createMapping("hold"),
+        createMapping("repeat"),
+        createMapping("mouse-button"),
+        createMapping("mouse-look"),
+      ];
+
+      const counts = { all: profile.mappings.length, movement: 0, action: 0, mouse: 0 };
+      for (const m of profile.mappings) {
+        if (m.type === "joystick") counts.movement++;
+        else if (m.type === "mouse-button" || m.type === "mouse-look") counts.mouse++;
+        else counts.action++;
+      }
+
+      expect(counts.all).toBe(6);
+      expect(counts.movement).toBe(1);
+      expect(counts.action).toBe(3);
+      expect(counts.mouse).toBe(2);
+    });
   });
 
   describe("2. Camera lock toggle trigger and defaults", () => {

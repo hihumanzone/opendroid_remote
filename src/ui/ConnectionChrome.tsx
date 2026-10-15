@@ -2,6 +2,7 @@ import { memo } from "react";
 import type { AdbTransportSnapshot } from "../adb/WebUsbAdbTransport";
 import {
   connectionPhaseLabel,
+  deviceOptionStatus,
   pendingConnectionPresentation,
   pendingDeviceLabel,
 } from "../adb/connectionPresentation";
@@ -14,6 +15,7 @@ import {
   IconRefresh,
   IconInstall,
   IconOffline,
+  IconOpenDroid,
 } from "./icons/UiIcons";
 import { CustomSelect } from "./controls/CustomSelect";
 
@@ -80,17 +82,13 @@ export const ConnectionChrome = memo(function ConnectionChrome({
     snapshot: transport,
   });
   const pendingPresentation = pendingConnectionPresentation(transport);
-  const connectionName =
-    activeDescriptor?.label ??
-    transport.pending[0]?.descriptor.label ??
-    "No Android connected";
 
   return (
     <>
       <header className="topbar">
         <a className="brand" href="#" aria-label="OpenDroid Remote home">
           <span className="brand-mark" aria-hidden="true">
-            OD
+            <IconOpenDroid size={34} />
           </span>
           <span className="brand-text">
             <strong>OpenDroid</strong>
@@ -120,9 +118,6 @@ export const ConnectionChrome = memo(function ConnectionChrome({
               Offline
             </span>
           ) : null}
-          <span className="connection-name" title={connectionName}>
-            {connectionName}
-          </span>
         </div>
 
         <div className="connection-actions">
@@ -162,18 +157,17 @@ export const ConnectionChrome = memo(function ConnectionChrome({
                     const pending = transport.pending.find(
                       (item) => item.descriptor.serial === device.serial,
                     );
-                    const statusText = device.serial === activeSerial
-                      ? "Live"
-                      : connectedSerials.has(device.serial)
-                        ? "ADB ready"
-                        : pending?.stage === "reconnecting"
-                          ? "Reconnecting"
-                          : pending
-                            ? "Connecting"
-                            : "Authorized";
+                    const statusText = deviceOptionStatus({
+                      serial: device.serial,
+                      activeSerial,
+                      isConnected: connectedSerials.has(device.serial),
+                      pendingStage: pending?.stage,
+                    });
                     return {
                       value: device.serial,
-                      label: `${device.label} — ${statusText}`,
+                      label: statusText
+                        ? `${device.label} — ${statusText}`
+                        : device.label,
                     };
                   }),
                 ]}

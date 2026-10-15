@@ -31,8 +31,22 @@ function requestResult<T>(request: IDBRequest<T>): Promise<T> {
   });
 }
 
+interface StorageLike {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+}
+
 export class ProfileRepository {
-  constructor(private readonly diagnostics?: Diagnostics) {}
+  #memory: GameProfile[] = [];
+  readonly #storage: StorageLike | undefined;
+
+  constructor(
+    private readonly diagnostics?: Diagnostics,
+    storage?: StorageLike,
+  ) {
+    this.#storage =
+      storage ?? (typeof localStorage === "undefined" ? undefined : localStorage);
+  }
 
   async list(): Promise<GameProfile[]> {
     if (typeof indexedDB !== "undefined") {
@@ -122,7 +136,19 @@ export class ProfileRepository {
     }
     const profiles = this.#listLocal().filter((item) => item.id !== saved.id);
     profiles.push(saved);
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(profiles));
+    this.#memory = profiles;
+    if (this.#storage) {
+      try {
+        this.#storage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(profiles));
+      } catch (error) {
+        this.diagnostics?.warn(
+          "profile",
+          "localstorage-save-failed",
+          "IndexedDB profile save failed; local storage save also failed.",
+          error,
+        );
+      }
+    }
     return saved;
   }
 
@@ -147,7 +173,19 @@ export class ProfileRepository {
       }
     }
     const profiles = this.#listLocal().filter((profile) => profile.id !== id);
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(profiles));
+    this.#memory = profiles;
+    if (this.#storage) {
+      try {
+        this.#storage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(profiles));
+      } catch (error) {
+        this.diagnostics?.warn(
+          "profile",
+          "localstorage-delete-failed",
+          "IndexedDB deletion failed; local storage deletion also failed.",
+          error,
+        );
+      }
+    }
   }
 
   async ensureDefault(): Promise<GameProfile> {
@@ -156,26 +194,53 @@ export class ProfileRepository {
     return this.save(createProfile("Default controls"));
   }
 
-  #listLocal(): GameProfile[] {
-    if (typeof localStorage === "undefined") return [];
-    try {
-      const parsed: unknown = JSON.parse(
-        localStorage.getItem(LOCAL_STORAGE_KEY) ?? "[]",
-      );
-      if (!Array.isArray(parsed)) return [];
-      return parsed
-        .filter(isGameProfile)
-        .map((profile) => structuredClone(profile))
-        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-    } catch (error) {
-      this.diagnostics?.warn(
-        "profile",
-        "localstorage-read-failed",
-        "Stored local profiles could not be parsed.",
-        error,
-      );
-      return [];
+  async findByPackage(packageName: string): Promise<GameProfile | undefined> {
+    const profiles = await this.list();
+    const target = packageName.trim().toLowerCase();
+    return profiles.find(
+      (p) => p.game?.packageName && p.game.packageName.toLowerCase().includes(target),
+    );
+  }
+
+  async getDefaultProfile(defaultId?: string): Promise<GameProfile> {
+    const profiles = await this.list();
+    if (defaultId) {
+      const explicit = profiles.find((p) => p.id === defaultId);
+      if (explicit) return explicit;
     }
+    const byName = profiles.find((p) => p.name.toLowerCase().includes("default"));
+    if (byName) return byName;
+    if (profiles[0]) return profiles[0];
+    return this.ensureDefault();
+  }
+
+  #listLocal(): GameProfile[] {
+    if (this.#storage) {
+      try {
+        const raw = this.#storage.getItem(LOCAL_STORAGE_KEY);
+        if (raw) {
+          const parsed: unknown = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            const list = parsed
+              .filter(isGameProfile)
+              .map((profile) => structuredClone(profile))
+              .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+            this.#memory = list;
+            return list;
+          }
+        }
+      } catch (error) {
+        this.diagnostics?.warn(
+          "profile",
+          "localstorage-read-failed",
+          "Stored local profiles could not be parsed.",
+          error,
+        );
+      }
+    }
+    return this.#memory
+      .map((p) => structuredClone(p))
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
 }
 

@@ -882,6 +882,8 @@ export class ScrcpySession {
         displayId,
       },
     });
+    let lastRenderedCount = 0;
+    let lastTimestamp = performance.now();
     this.#statsTimer = window.setInterval(() => {
       if (!this.#decoder) return;
       const decoder = this.#decoder;
@@ -889,11 +891,21 @@ export class ScrcpySession {
       const skipped = decoder.framesSkipped;
       const w = decoder.width || this.#snapshot.stats.width;
       const h = decoder.height || this.#snapshot.stats.height;
+      const now = performance.now();
+      const elapsedSec = (now - lastTimestamp) / 1000;
+      const fps =
+        elapsedSec > 0
+          ? Math.max(0, Math.round((rendered - lastRenderedCount) / elapsedSec))
+          : 0;
+      lastRenderedCount = rendered;
+      lastTimestamp = now;
+
       if (
         rendered === this.#snapshot.stats.framesRendered &&
         skipped === this.#snapshot.stats.framesSkipped &&
         w === this.#snapshot.stats.width &&
-        h === this.#snapshot.stats.height
+        h === this.#snapshot.stats.height &&
+        fps === this.#snapshot.stats.fps
       ) {
         return;
       }
@@ -905,6 +917,7 @@ export class ScrcpySession {
           framesSkipped: skipped,
           width: w,
           height: h,
+          fps,
         },
       });
     }, 1_000);

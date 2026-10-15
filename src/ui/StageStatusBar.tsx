@@ -64,7 +64,7 @@ export const StageStatusBar = memo(function StageStatusBar({
         </span>
         <span className="chip">
           {streaming
-            ? `${stats.width}×${stats.height} · ${stats.codec?.toUpperCase()}`
+            ? `${stats.width}×${stats.height}${stats.fps !== undefined ? ` · ${stats.fps} fps` : ""} · ${stats.codec?.toUpperCase()}`
             : "Awaiting stream"}
         </span>
         <span className={`chip ${audio.status === "playing" ? "active" : ""}`}>

@@ -29,6 +29,13 @@ export interface ConnectionPreferences {
   resumeStream: boolean;
 }
 
+export interface ProfilePreferences {
+  autoSwitch: boolean;
+  pollIntervalMs: number;
+  fallbackToDefault: boolean;
+  defaultProfileId?: string;
+}
+
 export interface DeviceStreamSettings {
   serial: string;
   quality: StreamQuality;
@@ -40,6 +47,7 @@ export interface AppSettings {
   devices: DeviceStreamSettings[];
   imports: ImportPreferences;
   connection: ConnectionPreferences;
+  profiles: ProfilePreferences;
 }
 
 export const DEFAULT_IMPORT_PREFERENCES: ImportPreferences = {
@@ -52,6 +60,12 @@ export const DEFAULT_IMPORT_PREFERENCES: ImportPreferences = {
 export const DEFAULT_CONNECTION_PREFERENCES: ConnectionPreferences = {
   autoReconnect: true,
   resumeStream: true,
+};
+
+export const DEFAULT_PROFILE_PREFERENCES: ProfilePreferences = {
+  autoSwitch: true,
+  pollIntervalMs: 1500,
+  fallbackToDefault: true,
 };
 
 const STORAGE_KEY = "opendroid-remote.settings.v1";
@@ -358,6 +372,152 @@ export function streamQualityIssues(quality: StreamQuality): string[] {
   return issues;
 }
 
+export type PerformancePreset = "latency" | "balanced" | "quality" | "custom";
+
+export function applyPerformancePreset(
+  quality: StreamQuality,
+  preset: "latency" | "balanced" | "quality",
+): StreamQuality {
+  switch (preset) {
+    case "latency":
+      return {
+        ...quality,
+        maxSize: 1280,
+        bitRate: 4_000_000,
+        maxFps: 60,
+        iFrameInterval: 1,
+        hardwareAcceleration: "prefer-hardware",
+        audio: { ...quality.audio, bufferMs: 30, bitRate: 96_000 },
+      };
+    case "quality":
+      return {
+        ...quality,
+        maxSize: 0,
+        bitRate: 20_000_000,
+        maxFps: 60,
+        iFrameInterval: 5,
+        hardwareAcceleration: "no-preference",
+        audio: { ...quality.audio, bufferMs: 100, bitRate: 192_000 },
+      };
+    case "balanced":
+      return {
+        ...quality,
+        maxSize: 1920,
+        bitRate: 8_000_000,
+        maxFps: 60,
+        iFrameInterval: undefined,
+        hardwareAcceleration: "no-preference",
+        audio: { ...quality.audio, bufferMs: 60, bitRate: 128_000 },
+      };
+  }
+}
+
+export function detectPerformancePreset(quality: StreamQuality): PerformancePreset {
+  if (
+    quality.maxSize === 1280 &&
+    quality.bitRate === 4_000_000 &&
+    quality.maxFps === 60 &&
+    quality.iFrameInterval === 1 &&
+    quality.hardwareAcceleration === "prefer-hardware" &&
+    quality.audio.bufferMs === 30 &&
+    quality.audio.bitRate === 96_000
+  ) {
+    return "latency";
+  }
+  if (
+    quality.maxSize === 1920 &&
+    quality.bitRate === 8_000_000 &&
+    quality.maxFps === 60 &&
+    quality.iFrameInterval === undefined &&
+    quality.hardwareAcceleration === "no-preference" &&
+    quality.audio.bufferMs === 60 &&
+    quality.audio.bitRate === 128_000
+  ) {
+    return "balanced";
+  }
+  if (
+    quality.maxSize === 0 &&
+    quality.bitRate === 20_000_000 &&
+    quality.maxFps === 60 &&
+    quality.iFrameInterval === 5 &&
+    quality.hardwareAcceleration === "no-preference" &&
+    quality.audio.bufferMs === 100 &&
+    quality.audio.bitRate === 192_000
+  ) {
+    return "quality";
+  }
+  return "custom";
+}
+
+export function isStreamQualityEqual(a: StreamQuality, b: StreamQuality): boolean {
+  if (a === b) return true;
+  return (
+    a.maxSize === b.maxSize &&
+    a.bitRate === b.bitRate &&
+    a.maxFps === b.maxFps &&
+    a.codec === b.codec &&
+    a.encoder === b.encoder &&
+    a.displayId === b.displayId &&
+    a.crop === b.crop &&
+    a.iFrameInterval === b.iFrameInterval &&
+    a.captureOrientation === b.captureOrientation &&
+    a.renderer === b.renderer &&
+    a.hardwareAcceleration === b.hardwareAcceleration &&
+    a.tunnel === b.tunnel &&
+    a.downsizeOnError === b.downsizeOnError &&
+    a.powerOn === b.powerOn &&
+    a.stayAwake === b.stayAwake &&
+    a.showTouches === b.showTouches &&
+    a.clipboardAutosync === b.clipboardAutosync &&
+    a.mouse.mode === b.mouse.mode &&
+    a.mouse.sensitivity === b.mouse.sensitivity &&
+    a.mouse.rawInput === b.mouse.rawInput &&
+    a.audio.enabled === b.audio.enabled &&
+    a.audio.duplicateOnDevice === b.audio.duplicateOnDevice &&
+    a.audio.volume === b.audio.volume &&
+    a.audio.codec === b.audio.codec &&
+    a.audio.bitRate === b.audio.bitRate &&
+    a.audio.encoder === b.audio.encoder &&
+    a.audio.bufferMs === b.audio.bufferMs
+  );
+}
+
+export function needsStreamRestart(
+  current: StreamQuality,
+  applied: StreamQuality,
+): boolean {
+  if (current === applied) return false;
+  // Volume can be changed live without restarting the scrcpy session
+  return (
+    current.maxSize !== applied.maxSize ||
+    current.bitRate !== applied.bitRate ||
+    current.maxFps !== applied.maxFps ||
+    current.codec !== applied.codec ||
+    current.encoder !== applied.encoder ||
+    current.displayId !== applied.displayId ||
+    current.crop !== applied.crop ||
+    current.iFrameInterval !== applied.iFrameInterval ||
+    current.captureOrientation !== applied.captureOrientation ||
+    current.renderer !== applied.renderer ||
+    current.hardwareAcceleration !== applied.hardwareAcceleration ||
+    current.tunnel !== applied.tunnel ||
+    current.downsizeOnError !== applied.downsizeOnError ||
+    current.powerOn !== applied.powerOn ||
+    current.stayAwake !== applied.stayAwake ||
+    current.showTouches !== applied.showTouches ||
+    current.clipboardAutosync !== applied.clipboardAutosync ||
+    current.mouse.mode !== applied.mouse.mode ||
+    current.mouse.sensitivity !== applied.mouse.sensitivity ||
+    current.mouse.rawInput !== applied.mouse.rawInput ||
+    current.audio.enabled !== applied.audio.enabled ||
+    current.audio.duplicateOnDevice !== applied.audio.duplicateOnDevice ||
+    current.audio.codec !== applied.audio.codec ||
+    current.audio.bitRate !== applied.audio.bitRate ||
+    current.audio.encoder !== applied.audio.encoder ||
+    current.audio.bufferMs !== applied.audio.bufferMs
+  );
+}
+
 export function createDefaultAppSettings(): AppSettings {
   return {
     schemaVersion: APP_SETTINGS_SCHEMA_VERSION,
@@ -365,6 +525,7 @@ export function createDefaultAppSettings(): AppSettings {
     devices: [],
     imports: { ...DEFAULT_IMPORT_PREFERENCES },
     connection: { ...DEFAULT_CONNECTION_PREFERENCES },
+    profiles: { ...DEFAULT_PROFILE_PREFERENCES },
   };
 }
 
@@ -378,6 +539,13 @@ export function parseAppSettings(value: unknown): AppSettings {
   }
   const imports = isRecord(value.imports) ? value.imports : {};
   const connection = isRecord(value.connection) ? value.connection : {};
+  const profiles = isRecord(value.profiles) ? value.profiles : {};
+  const defaultProfileId =
+    typeof profiles.defaultProfileId === "string" &&
+    profiles.defaultProfileId.length > 0
+      ? profiles.defaultProfileId
+      : undefined;
+
   const devices: DeviceStreamSettings[] = [];
   if (Array.isArray(value.devices)) {
     for (const item of value.devices) {
@@ -433,6 +601,23 @@ export function parseAppSettings(value: unknown): AppSettings {
         typeof connection.resumeStream === "boolean"
           ? connection.resumeStream
           : defaults.connection.resumeStream,
+    },
+    profiles: {
+      autoSwitch:
+        typeof profiles.autoSwitch === "boolean"
+          ? profiles.autoSwitch
+          : defaults.profiles.autoSwitch,
+      pollIntervalMs: integerInRange(
+        profiles.pollIntervalMs,
+        defaults.profiles.pollIntervalMs,
+        500,
+        10000,
+      ),
+      fallbackToDefault:
+        typeof profiles.fallbackToDefault === "boolean"
+          ? profiles.fallbackToDefault
+          : defaults.profiles.fallbackToDefault,
+      ...(defaultProfileId ? { defaultProfileId } : {}),
     },
   };
 }

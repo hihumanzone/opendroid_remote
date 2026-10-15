@@ -39,6 +39,11 @@ import {
   domCodeToAndroid,
   isEditableTarget,
 } from "./input/keyboardMapping";
+import { listInstalledPackages } from "./capabilities/appDetection";
+import {
+  AutoProfileCoordinator,
+  type AutoProfileState,
+} from "./profiles/AutoProfileCoordinator";
 import { ProfileRepository } from "./profiles/ProfileRepository";
 import { importProfileFiles } from "./profiles/ProfileImporter";
 import {
@@ -56,6 +61,7 @@ import {
   type AppSettings,
   type ConnectionPreferences,
   type ImportPreferences,
+  type ProfilePreferences,
 } from "./settings/AppSettings";
 import {
   ScrcpySession,
@@ -163,6 +169,7 @@ export default function App() {
   const profileRef = useRef<GameProfile | undefined>(undefined);
   const capturedMappingKeysRef = useRef(new Set<string>());
   const pointerLockRequestRef = useRef(false);
+  const appliedQualityRef = useRef<StreamQuality | undefined>(undefined);
 
   const [browser, setBrowser] = useState(INITIAL_BROWSER_CAPABILITIES);
   const [browserReady, setBrowserReady] = useState(false);
@@ -176,6 +183,9 @@ export default function App() {
   const [quality, setQualityState] = useState<StreamQuality>(() =>
     cloneStreamQuality(),
   );
+  const [appliedQuality, setAppliedQuality] = useState<StreamQuality | undefined>(
+    undefined,
+  );
   const [importPreferences, setImportPreferences] =
     useState<ImportPreferences>(
       () => createDefaultAppSettings().imports,
@@ -184,6 +194,16 @@ export default function App() {
     useState<ConnectionPreferences>(
       () => createDefaultAppSettings().connection,
     );
+  const [profilePreferences, setProfilePreferences] =
+    useState<ProfilePreferences>(
+      () => createDefaultAppSettings().profiles,
+    );
+  const [coordinator] = useState(
+    () => new AutoProfileCoordinator({ diagnostics }),
+  );
+  const [autoProfileState, setAutoProfileState] = useState<AutoProfileState>(
+    () => coordinator.state,
+  );
   const [profiles, setProfiles] = useState<GameProfile[]>([]);
   const [profile, setProfile] = useState<GameProfile>();
   const [selectedMappingId, setSelectedMappingId] = useState<string>();
@@ -319,6 +339,60 @@ export default function App() {
     [persistSettings, transport],
   );
 
+  const changeProfilePreferences = useCallback(
+    (next: ProfilePreferences) => {
+      setProfilePreferences(next);
+      coordinator.setPreferences(next);
+      persistSettings({ ...appSettingsRef.current, profiles: next });
+    },
+    [coordinator, persistSettings],
+  );
+
+  const toggleAutoSwitch = useCallback(
+    (enabled: boolean) => {
+      changeProfilePreferences({ ...profilePreferences, autoSwitch: enabled });
+    },
+    [changeProfilePreferences, profilePreferences],
+  );
+
+  const setDefaultProfile = useCallback(
+    (id: string) => {
+      const nextId = profilePreferences.defaultProfileId === id ? undefined : id;
+      changeProfilePreferences({ ...profilePreferences, defaultProfileId: nextId });
+      showNotice(
+        nextId ? "Set as default fallback profile." : "Cleared default profile.",
+      );
+    },
+    [changeProfilePreferences, profilePreferences],
+  );
+
+  const handleDetectCurrentApp = useCallback(async (): Promise<void> => {
+    const info = await coordinator.probeNow();
+    if (info) {
+      showNotice(
+        `Active on phone: ${info.packageName}${info.isLauncher ? " (Home screen)" : ""}`,
+      );
+    } else {
+      showNotice("No active app detected. Confirm device is unlocked.");
+    }
+  }, [coordinator]);
+
+  const handleScanInstalledApps = useCallback(async (): Promise<string[]> => {
+    const current = transport.get(activeSerialRef.current);
+    if (!current?.adb) {
+      showNotice("Connect an Android device to scan installed apps.");
+      return [];
+    }
+    try {
+      const pkgs = await listInstalledPackages(current.adb, true, diagnostics);
+      showNotice(`Discovered ${pkgs.length} installed apps on device.`);
+      return pkgs;
+    } catch (error) {
+      showNotice(`Failed scanning apps: ${errorText(error)}`);
+      return [];
+    }
+  }, [diagnostics, transport]);
+
   const showNotice = useCallback((message: string) => {
     if (noticeTimerRef.current !== undefined) {
       window.clearTimeout(noticeTimerRef.current);
@@ -448,7 +522,6 @@ export default function App() {
     if (!hasMouseLook) return;
     setCameraLockActive(true);
     await requestPointerLock();
-    void engineRef.current?.setPointerLockActive(true);
   }, [hasMouseLook, requestPointerLock]);
 
   const disableCameraLock = useCallback(async () => {
@@ -499,6 +572,8 @@ export default function App() {
 
         await session.prepare(device.adb);
         await session.start(device.adb, canvas, nextQuality);
+        appliedQualityRef.current = cloneStreamQuality(nextQuality);
+        setAppliedQuality(cloneStreamQuality(nextQuality));
         surfaceRef.current?.focus({ preventScroll: true });
         if (announce) showNotice(`Controlling ${device.descriptor.label}.`);
       } finally {
@@ -541,13 +616,50 @@ export default function App() {
       setQualityState(initialQuality);
       setImportPreferences(stored.imports);
       setConnectionPreferences(stored.connection);
+      setProfilePreferences(stored.profiles);
+      coordinator.setPreferences(stored.profiles);
       transport.configureReconnect(stored.connection.autoReconnect);
       setSettingsReady(true);
     });
     return () => {
       cancelled = true;
     };
-  }, [session, settingsRepository, transport]);
+  }, [coordinator, session, settingsRepository, transport]);
+
+  useEffect(() => coordinator.subscribe(setAutoProfileState), [coordinator]);
+
+  const handleAutoSwitchProfile = useCallback(
+    async (target: GameProfile, reason: string) => {
+      if (controlMode === "edit") return;
+      await releaseAllInput(true);
+      setCameraLockActive(false);
+      setProfile(target);
+      setSelectedMappingId(target.mappings[0]?.id);
+      showNotice(`Auto-switched to “${target.name}” (${reason}).`);
+    },
+    [controlMode, releaseAllInput, showNotice],
+  );
+
+  useEffect(() => {
+    coordinator.setOnSwitchProfile(handleAutoSwitchProfile);
+  }, [coordinator, handleAutoSwitchProfile]);
+
+  useEffect(() => {
+    coordinator.setProfiles(profiles, profile?.id);
+  }, [coordinator, profiles, profile?.id]);
+
+  useEffect(() => {
+    coordinator.setStreaming(streaming);
+  }, [coordinator, streaming]);
+
+  useEffect(() => {
+    coordinator.setControlMode(controlMode);
+  }, [coordinator, controlMode]);
+
+  useEffect(() => {
+    const current = transport.get(activeSerial);
+    coordinator.setAdb(current?.adb, quality.displayId);
+  }, [activeSerial, coordinator, quality.displayId, transport]);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -661,7 +773,17 @@ export default function App() {
       transport,
     ],
   );
-  useEffect(() => session.subscribe(setSessionState), [session]);
+  useEffect(
+    () =>
+      session.subscribe((next) => {
+        setSessionState(next);
+        if (next.phase !== "streaming" && next.phase !== "starting") {
+          appliedQualityRef.current = undefined;
+          setAppliedQuality(undefined);
+        }
+      }),
+    [session],
+  );
   useEffect(() => session.subscribeClipboard(setRemoteClipboard), [session]);
   useEffect(
     () => diagnostics.subscribeErrors(setHasErrors),
@@ -822,22 +944,37 @@ export default function App() {
         "getCoalescedEvents" in event &&
         typeof (event as PointerEvent).getCoalescedEvents === "function"
       ) {
-        const coalesced = (event as PointerEvent).getCoalescedEvents();
-        if (coalesced && coalesced.length > 0) {
-          for (let i = 0; i < coalesced.length; i++) {
-            deltaX += coalesced[i]!.movementX;
-            deltaY += coalesced[i]!.movementY;
+        try {
+          const coalesced = (event as PointerEvent).getCoalescedEvents();
+          if (coalesced && coalesced.length > 0) {
+            for (let i = 0; i < coalesced.length; i++) {
+              const mx = coalesced[i]?.movementX;
+              const my = coalesced[i]?.movementY;
+              if (Number.isFinite(mx) && Number.isFinite(my)) {
+                deltaX += mx!;
+                deltaY += my!;
+              }
+            }
+          } else {
+            deltaX = Number.isFinite(mouseEvent.movementX) ? mouseEvent.movementX : 0;
+            deltaY = Number.isFinite(mouseEvent.movementY) ? mouseEvent.movementY : 0;
           }
-        } else {
-          deltaX = mouseEvent.movementX;
-          deltaY = mouseEvent.movementY;
+        } catch {
+          deltaX = Number.isFinite(mouseEvent.movementX) ? mouseEvent.movementX : 0;
+          deltaY = Number.isFinite(mouseEvent.movementY) ? mouseEvent.movementY : 0;
         }
       } else {
-        deltaX = mouseEvent.movementX;
-        deltaY = mouseEvent.movementY;
+        deltaX = Number.isFinite(mouseEvent.movementX) ? mouseEvent.movementX : 0;
+        deltaY = Number.isFinite(mouseEvent.movementY) ? mouseEvent.movementY : 0;
       }
 
-      if (deltaX === 0 && deltaY === 0) return;
+      if (
+        !Number.isFinite(deltaX) ||
+        !Number.isFinite(deltaY) ||
+        (deltaX === 0 && deltaY === 0)
+      ) {
+        return;
+      }
 
       if (controlMode === "play" && hasMouseLook && cameraLockActive) {
         void engineRef.current?.handleMouseMove(
@@ -1204,6 +1341,8 @@ export default function App() {
               setBusy(true);
               await releaseAllInput(true);
               await session.start(current.adb, canvas, nextQuality);
+              appliedQualityRef.current = cloneStreamQuality(nextQuality);
+              setAppliedQuality(cloneStreamQuality(nextQuality));
               if (
                 update.focusedDisplayChanged &&
                 selected === undefined
@@ -1224,6 +1363,8 @@ export default function App() {
                   canvasRef.current,
                   qualityRef.current,
                 );
+                appliedQualityRef.current = cloneStreamQuality(qualityRef.current);
+                setAppliedQuality(cloneStreamQuality(qualityRef.current));
               } catch (resumeError) {
                 diagnostics.error(
                   "scrcpy",
@@ -1402,6 +1543,8 @@ export default function App() {
       try {
         await releaseAllInput(true);
         await session.start(current.adb, canvas, qualityRef.current);
+        appliedQualityRef.current = cloneStreamQuality(qualityRef.current);
+        setAppliedQuality(cloneStreamQuality(qualityRef.current));
         if (activeSerialRef.current === serial) {
           showNotice("Stream settings applied.");
         }
@@ -1451,6 +1594,8 @@ export default function App() {
         ) {
           restartAttempted = true;
           await session.start(current.adb, canvas, nextQuality);
+          appliedQualityRef.current = cloneStreamQuality(nextQuality);
+          setAppliedQuality(cloneStreamQuality(nextQuality));
         }
         showNotice("Displays and encoders refreshed.");
       } catch (error) {
@@ -1463,6 +1608,8 @@ export default function App() {
         ) {
           try {
             await session.start(current.adb, canvas, qualityRef.current);
+            appliedQualityRef.current = cloneStreamQuality(qualityRef.current);
+            setAppliedQuality(cloneStreamQuality(qualityRef.current));
           } catch (resumeError) {
             diagnostics.error(
               "scrcpy",
@@ -1494,6 +1641,7 @@ export default function App() {
     if (!selected) return;
     await releaseAllInput(true);
     setCameraLockActive(false);
+    coordinator.setManualOverride(id);
     setProfile(selected);
     setSelectedMappingId(selected.mappings[0]?.id);
   };
@@ -1593,6 +1741,12 @@ export default function App() {
     if (remaining.length === 0) {
       const replacement = await repository.save(createProfile("Default controls"));
       remaining = [replacement];
+    }
+    if (profilePreferences.defaultProfileId === profile.id) {
+      changeProfilePreferences({
+        ...profilePreferences,
+        defaultProfileId: undefined,
+      });
     }
     setProfiles(remaining);
     setProfile(remaining[0]);
@@ -1881,6 +2035,7 @@ export default function App() {
                 profile={profile}
                 selectedId={selectedMappingId}
                 mode={controlMode}
+                autoProfileState={autoProfileState}
                 onModeChange={changeControlMode}
                 onSelect={setSelectedMappingId}
                 onAdd={addMapping}
@@ -1898,6 +2053,10 @@ export default function App() {
                 audioSupported={browser.webAudio}
                 streaming={streaming}
                 busy={busy}
+                appliedQuality={appliedQuality}
+                hasDeviceOverride={Boolean(
+                  activeSerial && qualityBySerialRef.current.has(activeSerial),
+                )}
                 onChange={setQuality}
                 onConnectionChange={changeConnectionPreferences}
                 onApply={() => void restartStream()}
@@ -1914,6 +2073,8 @@ export default function App() {
               <ProfilePanel
                 profiles={profiles}
                 active={profile}
+                defaultProfileId={profilePreferences.defaultProfileId}
+                onSetDefaultProfile={setDefaultProfile}
                 onSelect={(id) => void chooseProfile(id)}
                 onChange={updateProfile}
                 onNew={() => void createNewProfile()}
@@ -1930,6 +2091,11 @@ export default function App() {
                     serializeProfile(profile),
                   );
                 }}
+                autoProfileState={autoProfileState}
+                onToggleAutoSwitch={toggleAutoSwitch}
+                onClearManualOverride={() => coordinator.clearManualOverride()}
+                onDetectCurrentApp={handleDetectCurrentApp}
+                onScanInstalledApps={handleScanInstalledApps}
               />
             ) : null}
             {panel === "diagnostics" ? (

@@ -6,7 +6,11 @@ import {
 import {
   APP_SETTINGS_SCHEMA_VERSION,
   AppSettingsRepository,
+  applyPerformancePreset,
   createDefaultAppSettings,
+  detectPerformancePreset,
+  isStreamQualityEqual,
+  needsStreamRestart,
   normalizeStreamQuality,
   parseAppSettings,
   streamQualityIssues,
@@ -152,5 +156,63 @@ describe("persistent application settings", () => {
     });
 
     expect(quality.mouse.mode).toBe("touch");
+  });
+
+  it("detects and applies performance presets accurately", () => {
+    const base = createDefaultAppSettings().defaultQuality;
+
+    const latency = applyPerformancePreset(base, "latency");
+    expect(latency.maxSize).toBe(1280);
+    expect(latency.bitRate).toBe(4_000_000);
+    expect(latency.maxFps).toBe(60);
+    expect(latency.iFrameInterval).toBe(1);
+    expect(latency.hardwareAcceleration).toBe("prefer-hardware");
+    expect(detectPerformancePreset(latency)).toBe("latency");
+
+    const balanced = applyPerformancePreset(base, "balanced");
+    expect(balanced.maxSize).toBe(1920);
+    expect(balanced.bitRate).toBe(8_000_000);
+    expect(balanced.maxFps).toBe(60);
+    expect(balanced.iFrameInterval).toBeUndefined();
+    expect(balanced.hardwareAcceleration).toBe("no-preference");
+    expect(detectPerformancePreset(balanced)).toBe("balanced");
+
+    const highQuality = applyPerformancePreset(base, "quality");
+    expect(highQuality.maxSize).toBe(0);
+    expect(highQuality.bitRate).toBe(20_000_000);
+    expect(highQuality.maxFps).toBe(60);
+    expect(highQuality.iFrameInterval).toBe(5);
+    expect(detectPerformancePreset(highQuality)).toBe("quality");
+
+    const modified = { ...balanced, bitRate: 14_000_000 };
+    expect(detectPerformancePreset(modified)).toBe("custom");
+  });
+
+  it("accurately detects when a stream restart is required vs real-time adjustment", () => {
+    const initial = createDefaultAppSettings().defaultQuality;
+    const same = cloneStreamQuality(initial);
+
+    expect(isStreamQualityEqual(initial, same)).toBe(true);
+    expect(needsStreamRestart(initial, same)).toBe(false);
+
+    // Audio volume can be changed in real time without restart
+    const volumeChange = {
+      ...initial,
+      audio: { ...initial.audio, volume: 0.5 },
+    };
+    expect(isStreamQualityEqual(initial, volumeChange)).toBe(false);
+    expect(needsStreamRestart(initial, volumeChange)).toBe(false);
+
+    // Resolution change requires restart
+    const resChange = { ...initial, maxSize: 1280 };
+    expect(needsStreamRestart(initial, resChange)).toBe(true);
+
+    // Bitrate change requires restart
+    const bitrateChange = { ...initial, bitRate: 16_000_000 };
+    expect(needsStreamRestart(initial, bitrateChange)).toBe(true);
+
+    // FPS change requires restart
+    const fpsChange = { ...initial, maxFps: 120 };
+    expect(needsStreamRestart(initial, fpsChange)).toBe(true);
   });
 });

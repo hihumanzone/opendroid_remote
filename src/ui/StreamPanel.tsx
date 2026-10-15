@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useEffect, useState } from "react";
 import type {
   AudioCodecPreference,
   SessionStats,
@@ -10,7 +10,12 @@ import type {
 import type {
   ConnectionPreferences,
 } from "../settings/AppSettings";
-import { streamQualityIssues } from "../settings/AppSettings";
+import {
+  applyPerformancePreset,
+  detectPerformancePreset,
+  needsStreamRestart,
+  streamQualityIssues,
+} from "../settings/AppSettings";
 import type {
   AndroidCapabilities,
   AudioPlaybackSnapshot,
@@ -28,6 +33,8 @@ export interface StreamPanelProps {
   audioSupported: boolean;
   streaming: boolean;
   busy: boolean;
+  appliedQuality?: StreamQuality;
+  hasDeviceOverride?: boolean;
   onChange(quality: StreamQuality): void;
   onConnectionChange(preferences: ConnectionPreferences): void;
   onApply(): void;
@@ -44,46 +51,26 @@ const RESOLUTION_PRESETS = [
   { value: 3840, label: "4K class · 3840 max" },
 ] as const;
 
+const BITRATE_PRESETS = [
+  { value: 4_000_000, label: "4M" },
+  { value: 8_000_000, label: "8M" },
+  { value: 12_000_000, label: "12M" },
+  { value: 16_000_000, label: "16M" },
+  { value: 20_000_000, label: "20M" },
+  { value: 30_000_000, label: "30M" },
+  { value: 50_000_000, label: "50M" },
+] as const;
+
+const FPS_PRESETS = [
+  { value: 0, label: "Unlimited" },
+  { value: 30, label: "30 fps" },
+  { value: 60, label: "60 fps" },
+  { value: 90, label: "90 fps" },
+  { value: 120, label: "120 fps" },
+] as const;
+
 function megabits(bits: number): number {
   return bits / 1_000_000;
-}
-
-function applyPerformancePreset(
-  quality: StreamQuality,
-  preset: "latency" | "balanced" | "quality",
-): StreamQuality {
-  switch (preset) {
-    case "latency":
-      return {
-        ...quality,
-        maxSize: 1280,
-        bitRate: 4_000_000,
-        maxFps: 60,
-        iFrameInterval: 1,
-        hardwareAcceleration: "prefer-hardware",
-        audio: { ...quality.audio, bufferMs: 30, bitRate: 96_000 },
-      };
-    case "quality":
-      return {
-        ...quality,
-        maxSize: 0,
-        bitRate: 20_000_000,
-        maxFps: 60,
-        iFrameInterval: 5,
-        hardwareAcceleration: "no-preference",
-        audio: { ...quality.audio, bufferMs: 100, bitRate: 192_000 },
-      };
-    case "balanced":
-      return {
-        ...quality,
-        maxSize: 1920,
-        bitRate: 8_000_000,
-        maxFps: 60,
-        iFrameInterval: undefined,
-        hardwareAcceleration: "no-preference",
-        audio: { ...quality.audio, bufferMs: 60, bitRate: 128_000 },
-      };
-  }
 }
 
 export const StreamPanel = memo(function StreamPanel({
@@ -95,6 +82,8 @@ export const StreamPanel = memo(function StreamPanel({
   audioSupported,
   streaming,
   busy,
+  appliedQuality,
+  hasDeviceOverride = false,
   onChange,
   onConnectionChange,
   onApply,
@@ -103,11 +92,44 @@ export const StreamPanel = memo(function StreamPanel({
   onReset,
 }: StreamPanelProps) {
   const issues = streamQualityIssues(quality);
-  const presetValue = RESOLUTION_PRESETS.some(
+  const currentPreset = detectPerformancePreset(quality);
+  const isPendingRestart =
+    streaming &&
+    appliedQuality !== undefined &&
+    needsStreamRestart(quality, appliedQuality);
+
+  const activeDisplay =
+    quality.displayId !== undefined
+      ? capabilities?.displays.find((d) => d.id === quality.displayId)
+      : capabilities?.displays.find(
+          (d) => d.id === capabilities.recommendedDisplayId,
+        ) ?? capabilities?.displays.find((d) => d.focused);
+  const nativeResolutionLabel = activeDisplay?.resolution
+    ? `Native · ${activeDisplay.resolution}`
+    : "Native / unlimited";
+
+  const isKnownPreset = RESOLUTION_PRESETS.some(
     (preset) => preset.value === quality.maxSize,
-  )
-    ? String(quality.maxSize)
-    : "custom";
+  );
+  const [customResolutionActive, setCustomResolutionActive] = useState(
+    () => !isKnownPreset,
+  );
+  const [customSizeText, setCustomSizeText] = useState(() =>
+    String(quality.maxSize),
+  );
+
+  useEffect(() => {
+    if (!isKnownPreset) {
+      setCustomResolutionActive(true);
+    }
+    setCustomSizeText(String(quality.maxSize));
+  }, [isKnownPreset, quality.maxSize]);
+
+  const presetValue =
+    !customResolutionActive && isKnownPreset
+      ? String(quality.maxSize)
+      : "custom";
+
   const availableEncoders = (capabilities?.encoders ?? []).filter(
     (encoder) => quality.codec === "auto" || encoder.codec === quality.codec,
   );
@@ -150,10 +172,9 @@ export const StreamPanel = memo(function StreamPanel({
         <label className="field">
           <span>Performance preset</span>
           <CustomSelect
-            value=""
-            placeholder="Choose without replacing custom values…"
+            value={currentPreset}
             onChange={(val) => {
-              if (!val) return;
+              if (!val || val === "custom") return;
               onChange(
                 applyPerformancePreset(
                   quality,
@@ -162,10 +183,12 @@ export const StreamPanel = memo(function StreamPanel({
               );
             }}
             options={[
-              { value: "", label: "Choose without replacing custom values…" },
-              { value: "latency", label: "Low latency · 1280 / 4 Mbps" },
-              { value: "balanced", label: "Balanced · 1920 / 8 Mbps" },
-              { value: "quality", label: "High quality · native / 20 Mbps" },
+              { value: "latency", label: "Low latency · 1280 max · 4 Mbps · 60 fps" },
+              { value: "balanced", label: "Balanced · 1920 max · 8 Mbps · 60 fps" },
+              { value: "quality", label: "High quality · native · 20 Mbps · 60 fps" },
+              ...(currentPreset === "custom"
+                ? [{ value: "custom", label: "Custom configuration" }]
+                : []),
             ]}
           />
         </label>
@@ -198,31 +221,59 @@ export const StreamPanel = memo(function StreamPanel({
           <CustomSelect
             value={presetValue}
             onChange={(val) => {
-              if (val === "custom") return;
-              onChange({ ...quality, maxSize: Number(val) });
+              if (val === "custom") {
+                setCustomResolutionActive(true);
+              } else {
+                setCustomResolutionActive(false);
+                onChange({ ...quality, maxSize: Number(val) });
+              }
             }}
             options={[
               ...RESOLUTION_PRESETS.map((preset) => ({
                 value: String(preset.value),
-                label: preset.label,
+                label: preset.value === 0 ? nativeResolutionLabel : preset.label,
               })),
-              { value: "custom", label: `Custom · ${quality.maxSize} px` },
+              { value: "custom", label: "Custom dimension…" },
             ]}
           />
         </label>
-        <label className="field">
-          <span>Custom maximum dimension (0 = native)</span>
-          <input
-            type="number"
-            min={0}
-            max={8192}
-            step={16}
-            value={quality.maxSize}
-            onChange={(event) =>
-              onChange({ ...quality, maxSize: Number(event.target.value) })
-            }
-          />
-        </label>
+
+        {customResolutionActive ? (
+          <label className="field">
+            <span>Custom maximum dimension (0 = native, max 8192)</span>
+            <input
+              type="number"
+              min={0}
+              max={8192}
+              step={16}
+              value={customSizeText}
+              onChange={(event) => {
+                const raw = event.target.value;
+                setCustomSizeText(raw);
+                if (raw !== "") {
+                  const num = Number(raw);
+                  if (!Number.isNaN(num) && num >= 0 && num <= 8192) {
+                    onChange({ ...quality, maxSize: Math.round(num) });
+                  }
+                }
+              }}
+              onBlur={() => {
+                if (customSizeText === "" || Number.isNaN(Number(customSizeText))) {
+                  setCustomSizeText(String(quality.maxSize));
+                } else {
+                  const clamped = Math.max(
+                    0,
+                    Math.min(8192, Math.round(Number(customSizeText))),
+                  );
+                  setCustomSizeText(String(clamped));
+                  if (clamped !== quality.maxSize) {
+                    onChange({ ...quality, maxSize: clamped });
+                  }
+                }
+              }}
+            />
+          </label>
+        ) : null}
 
         <div className="field-grid two">
           <label className="field">
@@ -282,9 +333,37 @@ export const StreamPanel = memo(function StreamPanel({
             Video bitrate{" "}
             <output>{megabits(quality.bitRate).toFixed(1)} Mbps</output>
           </span>
+          <div
+            className="chip-wrap"
+            style={{
+              display: "flex",
+              gap: "6px",
+              flexWrap: "wrap",
+              marginTop: "2px",
+              marginBottom: "4px",
+            }}
+          >
+            {BITRATE_PRESETS.map((preset) => (
+              <button
+                key={preset.value}
+                type="button"
+                className={`chip ${quality.bitRate === preset.value ? "active" : ""}`}
+                style={{
+                  cursor: "pointer",
+                  border:
+                    quality.bitRate === preset.value
+                      ? undefined
+                      : "1px solid var(--line-subtle)",
+                }}
+                onClick={() => onChange({ ...quality, bitRate: preset.value })}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
           <CustomSlider
             min={500_000}
-            max={50_000_000}
+            max={100_000_000}
             step={500_000}
             value={quality.bitRate}
             onChange={(val) =>
@@ -293,40 +372,78 @@ export const StreamPanel = memo(function StreamPanel({
           />
         </div>
 
-        <div className="field-grid two">
-          <label className="field">
-            <span>Frame limit (0 = unlimited)</span>
-            <input
-              type="number"
-              min={0}
-              max={240}
-              step={1}
-              value={quality.maxFps}
-              onChange={(event) =>
-                onChange({ ...quality, maxFps: Number(event.target.value) })
-              }
-            />
-          </label>
-          <label className="field">
-            <span>I-frame interval (seconds)</span>
-            <input
-              type="number"
-              min={0}
-              max={60}
-              step={0.5}
-              value={quality.iFrameInterval ?? ""}
-              placeholder="Android default"
-              onChange={(event) =>
-                onChange({
-                  ...quality,
-                  iFrameInterval:
-                    event.target.value === ""
+        <div className="range-field">
+          <span>
+            Frame limit{" "}
+            <output>{quality.maxFps === 0 ? "Unlimited" : `${quality.maxFps} fps`}</output>
+          </span>
+          <div
+            className="chip-wrap"
+            style={{
+              display: "flex",
+              gap: "6px",
+              flexWrap: "wrap",
+              marginTop: "2px",
+              marginBottom: "4px",
+            }}
+          >
+            {FPS_PRESETS.map((preset) => (
+              <button
+                key={preset.value}
+                type="button"
+                className={`chip ${quality.maxFps === preset.value ? "active" : ""}`}
+                style={{
+                  cursor: "pointer",
+                  border:
+                    quality.maxFps === preset.value
                       ? undefined
-                      : Number(event.target.value),
-                })
-              }
-            />
-          </label>
+                      : "1px solid var(--line-subtle)",
+                }}
+                onClick={() => onChange({ ...quality, maxFps: preset.value })}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+          <div className="field-grid two">
+            <label className="field">
+              <span>Custom frame limit (0 = unlimited)</span>
+              <input
+                type="number"
+                min={0}
+                max={240}
+                step={1}
+                value={quality.maxFps}
+                onChange={(event) => {
+                  const raw = event.target.value;
+                  const val = raw === "" ? 0 : Number(raw);
+                  if (!Number.isNaN(val) && val >= 0 && val <= 240) {
+                    onChange({ ...quality, maxFps: Math.round(val) });
+                  }
+                }}
+              />
+            </label>
+            <label className="field">
+              <span>I-frame interval (seconds)</span>
+              <input
+                type="number"
+                min={0}
+                max={60}
+                step={0.5}
+                value={quality.iFrameInterval ?? ""}
+                placeholder="Android default"
+                onChange={(event) =>
+                  onChange({
+                    ...quality,
+                    iFrameInterval:
+                      event.target.value === ""
+                        ? undefined
+                        : Number(event.target.value),
+                  })
+                }
+              />
+            </label>
+          </div>
         </div>
 
         <label className="field">
@@ -817,13 +934,24 @@ export const StreamPanel = memo(function StreamPanel({
           </ul>
         ) : null}
 
+        {isPendingRestart ? (
+          <p className="settings-warning" role="status">
+            Stream settings have been modified. Restart the stream to apply these changes.
+          </p>
+        ) : null}
+
         <div className="button-row">
           <button
             type="button"
             className="button subtle"
             onClick={onReset}
+            title={
+              hasDeviceOverride
+                ? "Reset saved override for this device back to global defaults"
+                : "Reset stream settings to default"
+            }
           >
-            Reset device override
+            {hasDeviceOverride ? "Reset device override" : "Reset to defaults"}
           </button>
           <button
             type="button"
@@ -831,7 +959,7 @@ export const StreamPanel = memo(function StreamPanel({
             disabled={!streaming || busy || issues.length > 0}
             onClick={onApply}
           >
-            Apply & restart
+            {isPendingRestart ? "Apply & restart" : "Restart stream"}
           </button>
         </div>
       </section>
@@ -848,16 +976,23 @@ export const StreamPanel = memo(function StreamPanel({
             </strong>
           </div>
           <div>
+            <span>FPS</span>
+            <strong>
+              {stats.fps !== undefined ? `${stats.fps} fps` : "—"}
+            </strong>
+          </div>
+          <div>
             <span>Codec</span>
             <strong>{stats.codec?.toUpperCase() ?? "—"}</strong>
           </div>
           <div>
             <span>Rendered</span>
-            <strong>{stats.framesRendered.toLocaleString()}</strong>
-          </div>
-          <div>
-            <span>Skipped</span>
-            <strong>{stats.framesSkipped.toLocaleString()}</strong>
+            <strong>
+              {stats.framesRendered.toLocaleString()}
+              {stats.framesSkipped > 0
+                ? ` (${stats.framesSkipped} skipped)`
+                : ""}
+            </strong>
           </div>
         </div>
       </section>

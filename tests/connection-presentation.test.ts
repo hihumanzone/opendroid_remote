@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   connectionPhaseLabel,
+  deviceOptionStatus,
   dominantPendingStage,
   pendingConnectionPresentation,
   pendingDeviceLabel,
@@ -104,5 +105,59 @@ describe("connection presentation", () => {
       "Approve on Android",
       "Cable disconnected · reconnecting automatically",
     ]);
+  });
+
+  describe("deviceOptionStatus", () => {
+    it("never returns 'Live' as a suffix for the active device", () => {
+      const status = deviceOptionStatus({
+        serial: "DEVICE-1",
+        activeSerial: "DEVICE-1",
+        isConnected: true,
+      });
+
+      expect(status).toBeUndefined();
+    });
+
+    it("returns 'ADB ready' for connected non-active devices", () => {
+      const status = deviceOptionStatus({
+        serial: "DEVICE-2",
+        activeSerial: "DEVICE-1",
+        isConnected: true,
+      });
+
+      expect(status).toBe("ADB ready");
+    });
+
+    it("returns 'Reconnecting' when the device stage is reconnecting", () => {
+      const status = deviceOptionStatus({
+        serial: "DEVICE-2",
+        activeSerial: "DEVICE-1",
+        isConnected: false,
+        pendingStage: "reconnecting",
+      });
+
+      expect(status).toBe("Reconnecting");
+    });
+
+    it("returns 'Connecting' for other pending stages", () => {
+      const status = deviceOptionStatus({
+        serial: "DEVICE-2",
+        activeSerial: "DEVICE-1",
+        isConnected: false,
+        pendingStage: "connecting",
+      });
+
+      expect(status).toBe("Connecting");
+    });
+
+    it("returns 'Authorized' for authorized devices that are not connected or pending", () => {
+      const status = deviceOptionStatus({
+        serial: "DEVICE-2",
+        activeSerial: "DEVICE-1",
+        isConnected: false,
+      });
+
+      expect(status).toBe("Authorized");
+    });
   });
 });

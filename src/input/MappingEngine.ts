@@ -306,7 +306,9 @@ export class MappingEngine {
 
   async setPointerLockActive(active: boolean): Promise<void> {
     await this.#configurationQueue.run(async () => {
-      this.#pointerLockActive = active && this.#enabled;
+      const nextActive = active && this.#enabled;
+      if (nextActive === this.#pointerLockActive) return;
+      this.#pointerLockActive = nextActive;
       if (this.#pointerLockActive) {
         await this.#beginMouseLookTouches();
         return;
@@ -330,9 +332,19 @@ export class MappingEngine {
     viewportWidth: number,
     viewportHeight: number,
   ): Promise<boolean> {
-    if (!this.#enabled || !this.#pointerLockActive) return false;
+    if (
+      !this.#enabled ||
+      !this.#pointerLockActive ||
+      !Number.isFinite(movementX) ||
+      !Number.isFinite(movementY)
+    ) {
+      return false;
+    }
+    if (movementX === 0 && movementY === 0) return false;
     let consumed = false;
     const pumps: Promise<void>[] = [];
+    const refDimension = Math.max(1, Math.min(viewportWidth, viewportHeight));
+
     for (const mapping of this.#activeMappings()) {
       if (mapping.type !== "mouse-look") continue;
       consumed = true;
@@ -340,15 +352,17 @@ export class MappingEngine {
         mapping.sensitivity || this.#profile.settings.mouseSensitivity;
       const radii = this.#mappingRadii(mapping.radius);
       const dx =
-        (movementX / Math.max(1, viewportWidth)) *
+        (movementX / refDimension) *
         sensitivity *
         1000 *
         (mapping.invertX ? -1 : 1);
       const dy =
-        (movementY / Math.max(1, viewportHeight)) *
+        (movementY / refDimension) *
         sensitivity *
         1000 *
         (mapping.invertY ? -1 : 1);
+
+      if (!Number.isFinite(dx) || !Number.isFinite(dy)) continue;
 
       const pending = this.#pendingLookDeltas.get(mapping.id) ?? { dx: 0, dy: 0 };
       pending.dx += dx;
@@ -769,6 +783,16 @@ export class MappingEngine {
       await this.#touches.begin(owner, center);
       current = center;
       segment += 1;
+      if (segment >= 16) {
+        // Cap excessive multi-segment loops from extreme flick deltas to prevent USB congestion
+        const remNorm = Math.hypot(remaining.x / radii.x, remaining.y / radii.y);
+        if (remNorm > 1) {
+          remaining = {
+            x: (remaining.x / remNorm) * 0.99,
+            y: (remaining.y / remNorm) * 0.99,
+          };
+        }
+      }
       if (segment % 128 === 0) {
         // Imported profiles or synthetic events can report extreme deltas.
         // Yield without dropping the remainder so the UI stays responsive.

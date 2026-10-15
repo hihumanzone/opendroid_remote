@@ -212,6 +212,56 @@ describe("mapping execution", () => {
     expect(engine.activeTouchCount).toBe(0);
   });
 
+  it("provides uniform 1:1 circular sensitivity across unequal viewport dimensions", async () => {
+    const look = createMapping("mouse-look", { x: 0.5, y: 0.5 });
+    look.radius = 0.4;
+    look.sensitivity = 0.001;
+    const { engine, events } = harness([look]);
+    await engine.setEnabled(true);
+    await engine.setPointerLockActive(true);
+
+    // Diagonal movement on 16:9 viewport (1920x1080)
+    await engine.handleMouseMove(10, 10, 1920, 1080);
+    const lastMove = events.filter((e) => e.phase === "move").at(-1)!;
+    const deltaX = Math.abs(lastMove.point.x - 0.5);
+    const deltaY = Math.abs(lastMove.point.y - 0.5);
+    // X and Y displacements should be identical (1:1 uniform sensitivity)
+    expect(deltaX).toBeCloseTo(deltaY, 6);
+  });
+
+  it("is idempotent when setPointerLockActive is called repeatedly", async () => {
+    const look = createMapping("mouse-look", { x: 0.5, y: 0.5 });
+    const { engine, events } = harness([look]);
+    await engine.setEnabled(true);
+    await engine.setPointerLockActive(true);
+    const downCount = events.filter((e) => e.phase === "down").length;
+    expect(downCount).toBe(1);
+
+    // Subsequent redundant call should not re-initialize touches
+    await engine.setPointerLockActive(true);
+    expect(events.filter((e) => e.phase === "down").length).toBe(1);
+    expect(engine.activeTouchCount).toBe(1);
+
+    await engine.setPointerLockActive(false);
+    expect(engine.activeTouchCount).toBe(0);
+    // Redundant unlock should be no-op
+    await engine.setPointerLockActive(false);
+    expect(engine.activeTouchCount).toBe(0);
+  });
+
+  it("safely ignores non-finite mouse movement deltas", async () => {
+    const look = createMapping("mouse-look", { x: 0.5, y: 0.5 });
+    const { engine, events } = harness([look]);
+    await engine.setEnabled(true);
+    await engine.setPointerLockActive(true);
+    const initialEvents = events.length;
+
+    await engine.handleMouseMove(NaN, 10, 1000, 500);
+    await engine.handleMouseMove(10, Infinity, 1000, 500);
+    await engine.handleMouseMove(-Infinity, -Infinity, 1000, 500);
+    expect(events.length).toBe(initialEvents);
+  });
+
   it("serializes concurrent mouse-look deltas without overwriting position", async () => {
     const events: SyntheticTouchEvent[] = [];
     let releaseFirstMove = () => {};

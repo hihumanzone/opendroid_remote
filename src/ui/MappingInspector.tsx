@@ -1,81 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import type { GameMapping } from "../profiles/schema";
 import { CustomSelect } from "./controls/CustomSelect";
+import { SliderNumberField } from "./controls/SliderNumberField";
 
 export interface MappingInspectorProps {
   mapping?: GameMapping;
   onChange(mapping: GameMapping): void;
   onDelete(id: string): void;
-}
-
-function NumberField({
-  label,
-  value,
-  min,
-  max,
-  step,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  onChange(value: number): void;
-}) {
-  const [text, setText] = useState(() => String(value));
-  const [isFocused, setIsFocused] = useState(false);
-
-  useEffect(() => {
-    if (!isFocused) {
-      setText(String(value));
-    }
-  }, [value, isFocused]);
-
-  const commit = (raw: string) => {
-    let next = Number(raw);
-    if (!Number.isFinite(next) || raw.trim() === "") {
-      next = value;
-    }
-    const clamped = Math.min(max, Math.max(min, next));
-    const normalized = Number(clamped.toFixed(4));
-    setText(String(normalized));
-    onChange(normalized);
-  };
-
-  return (
-    <label className="field">
-      <span>{label}</span>
-      <input
-        type="number"
-        value={text}
-        min={min}
-        max={max}
-        step={step}
-        onFocus={() => setIsFocused(true)}
-        onChange={(event) => {
-          const raw = event.target.value;
-          setText(raw);
-          const next = Number(raw);
-          if (Number.isFinite(next) && next >= min && next <= max) {
-            onChange(next);
-          }
-        }}
-        onBlur={() => {
-          setIsFocused(false);
-          commit(text);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            event.currentTarget.blur();
-          }
-        }}
-      />
-    </label>
-  );
 }
 
 function KeyCapture({
@@ -144,127 +78,161 @@ export function MappingInspector({
         </label>
       </div>
 
-      <label className="field">
-        <span>Name</span>
-        <input
-          value={mapping.name}
-          onChange={(event) => update({ name: event.target.value || "Mapping" })}
-        />
-      </label>
+      <div className="inspector-card">
+        <label className="field">
+          <span>Name</span>
+          <input
+            value={mapping.name}
+            onChange={(event) => update({ name: event.target.value || "Mapping" })}
+          />
+        </label>
 
-      <label className="field">
-        <span>Orientation</span>
-        <CustomSelect
-          value={mapping.orientation}
-          onChange={(val) =>
-            update({
-              orientation: val as GameMapping["orientation"],
-            })
-          }
-          options={[
-            { value: "any", label: "Any orientation" },
-            { value: "landscape", label: "Landscape only" },
-            { value: "portrait", label: "Portrait only" },
-          ]}
-        />
-      </label>
+        <label className="field">
+          <span>Orientation</span>
+          <CustomSelect
+            value={mapping.orientation}
+            onChange={(val) =>
+              update({
+                orientation: val as GameMapping["orientation"],
+              })
+            }
+            options={[
+              { value: "any", label: "Any orientation" },
+              { value: "landscape", label: "Landscape only" },
+              { value: "portrait", label: "Portrait only" },
+            ]}
+          />
+        </label>
+      </div>
 
-      <div className="field-grid two">
-        <NumberField
-          label="X"
-          value={Number(mapping.position.x.toFixed(4))}
-          min={0}
-          max={1}
-          step={0.001}
-          onChange={(x) => update({ position: { ...mapping.position, x } })}
-        />
-        <NumberField
-          label="Y"
-          value={Number(mapping.position.y.toFixed(4))}
-          min={0}
-          max={1}
-          step={0.001}
-          onChange={(y) => update({ position: { ...mapping.position, y } })}
-        />
+      <div className="inspector-card">
+        <span className="inspector-card-title">Placement</span>
+        <div className="field-grid two">
+          <SliderNumberField
+            label="X"
+            value={Number(mapping.position.x.toFixed(4))}
+            min={0}
+            max={1}
+            step={0.001}
+            sliderStep={0.005}
+            precision={4}
+            onChange={(x) => update({ position: { ...mapping.position, x } })}
+          />
+          <SliderNumberField
+            label="Y"
+            value={Number(mapping.position.y.toFixed(4))}
+            min={0}
+            max={1}
+            step={0.001}
+            sliderStep={0.005}
+            precision={4}
+            onChange={(y) => update({ position: { ...mapping.position, y } })}
+          />
+        </div>
       </div>
 
       {mapping.type === "tap" ||
       mapping.type === "hold" ||
       mapping.type === "repeat" ||
       mapping.type === "swipe" ? (
-        <KeyCapture
-          label="Trigger"
-          code={mapping.trigger.code}
-          onChange={(code) =>
-            onChange({ ...mapping, trigger: { kind: "key", code } })
-          }
-        />
-      ) : null}
-
-      {mapping.type === "tap" ? (
-        <NumberField
-          label="Tap duration (ms)"
-          value={mapping.durationMs}
-          min={20}
-          max={1000}
-          step={5}
-          onChange={(durationMs) => onChange({ ...mapping, durationMs })}
-        />
-      ) : null}
-
-      {mapping.type === "repeat" ? (
-        <div className="field-grid two">
-          <NumberField
-            label="Interval (ms)"
-            value={mapping.intervalMs}
-            min={40}
-            max={5000}
-            step={5}
-            onChange={(intervalMs) =>
-              onChange({
-                ...mapping,
-                intervalMs,
-                pressMs: Math.min(mapping.pressMs, intervalMs),
-              })
+        <div className="inspector-card">
+          <span className="inspector-card-title">Trigger</span>
+          <KeyCapture
+            label="Trigger key"
+            code={mapping.trigger.code}
+            onChange={(code) =>
+              onChange({ ...mapping, trigger: { kind: "key", code } })
             }
-          />
-          <NumberField
-            label="Press (ms)"
-            value={mapping.pressMs}
-            min={15}
-            max={mapping.intervalMs}
-            step={5}
-            onChange={(pressMs) => onChange({ ...mapping, pressMs })}
           />
         </div>
       ) : null}
 
-      {mapping.type === "swipe" ? (
-        <>
+      {mapping.type === "tap" ? (
+        <div className="inspector-card">
+          <span className="inspector-card-title">Timing</span>
+          <SliderNumberField
+            label="Tap duration"
+            value={mapping.durationMs}
+            min={20}
+            max={1000}
+            step={5}
+            unit="ms"
+            precision={0}
+            onChange={(durationMs) => onChange({ ...mapping, durationMs })}
+          />
+        </div>
+      ) : null}
+
+      {mapping.type === "repeat" ? (
+        <div className="inspector-card">
+          <span className="inspector-card-title">Repeat Dynamics</span>
           <div className="field-grid two">
-            <NumberField
+            <SliderNumberField
+              label="Interval"
+              value={mapping.intervalMs}
+              min={40}
+              max={5000}
+              sliderMax={2000}
+              step={5}
+              unit="ms"
+              precision={0}
+              onChange={(intervalMs) =>
+                onChange({
+                  ...mapping,
+                  intervalMs,
+                  pressMs: Math.min(mapping.pressMs, intervalMs),
+                })
+              }
+            />
+            <SliderNumberField
+              label="Press duration"
+              value={mapping.pressMs}
+              min={15}
+              max={mapping.intervalMs}
+              sliderMax={mapping.intervalMs}
+              step={5}
+              unit="ms"
+              precision={0}
+              onChange={(pressMs) => onChange({ ...mapping, pressMs })}
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {mapping.type === "swipe" ? (
+        <div className="inspector-card">
+          <span className="inspector-card-title">Swipe Endpoint & Timing</span>
+          <div className="field-grid two">
+            <SliderNumberField
               label="End X"
               value={Number(mapping.end.x.toFixed(4))}
               min={0}
               max={1}
               step={0.001}
+              sliderStep={0.005}
+              precision={4}
               onChange={(x) => onChange({ ...mapping, end: { ...mapping.end, x } })}
             />
-            <NumberField
+            <SliderNumberField
               label="End Y"
               value={Number(mapping.end.y.toFixed(4))}
               min={0}
               max={1}
               step={0.001}
+              sliderStep={0.005}
+              precision={4}
               onChange={(y) => onChange({ ...mapping, end: { ...mapping.end, y } })}
             />
           </div>
-          <NumberField
-            label="Duration (ms)"
+          <SliderNumberField
+            label="Duration"
             value={mapping.durationMs}
             min={40}
             max={5000}
+            sliderMax={2000}
             step={10}
+            unit="ms"
+            precision={0}
             onChange={(durationMs) => onChange({ ...mapping, durationMs })}
           />
           <label className="switch inline">
@@ -277,11 +245,12 @@ export function MappingInspector({
             />
             <span>Release when swipe finishes</span>
           </label>
-        </>
+        </div>
       ) : null}
 
       {mapping.type === "joystick" ? (
-        <>
+        <div className="inspector-card">
+          <span className="inspector-card-title">Directional Keys</span>
           <div className="field-grid two">
             {(["up", "down", "left", "right"] as const).map((direction) => (
               <KeyCapture
@@ -297,29 +266,37 @@ export function MappingInspector({
               />
             ))}
           </div>
+          <span className="inspector-card-title" style={{ marginTop: "12px" }}>
+            Movement Dynamics
+          </span>
           <div className="field-grid two">
-            <NumberField
+            <SliderNumberField
               label="Radius"
               value={mapping.radius}
               min={0.01}
               max={0.5}
-              step={0.005}
+              step={0.001}
+              sliderStep={0.005}
+              precision={3}
               onChange={(radius) => onChange({ ...mapping, radius })}
             />
-            <NumberField
+            <SliderNumberField
               label="Smoothing"
               value={mapping.smoothing}
               min={0}
               max={1}
-              step={0.05}
+              step={0.01}
+              sliderStep={0.01}
+              precision={2}
               onChange={(smoothing) => onChange({ ...mapping, smoothing })}
             />
           </div>
-        </>
+        </div>
       ) : null}
 
       {mapping.type === "mouse-button" ? (
-        <>
+        <div className="inspector-card">
+          <span className="inspector-card-title">Mouse Trigger & Behavior</span>
           <label className="field">
             <span>Mouse button</span>
             <CustomSelect
@@ -328,9 +305,9 @@ export function MappingInspector({
                 onChange({ ...mapping, button: Number(val) })
               }
               options={[
-                { value: 0, label: "Primary" },
+                { value: 0, label: "Primary (Left)" },
                 { value: 1, label: "Middle" },
-                { value: 2, label: "Secondary" },
+                { value: 2, label: "Secondary (Right)" },
                 { value: 3, label: "Back" },
                 { value: 4, label: "Forward" },
               ]}
@@ -353,20 +330,23 @@ export function MappingInspector({
             />
           </label>
           {mapping.behavior === "tap" ? (
-            <NumberField
-              label="Tap duration (ms)"
+            <SliderNumberField
+              label="Tap duration"
               value={mapping.durationMs}
               min={20}
               max={1000}
               step={5}
+              unit="ms"
+              precision={0}
               onChange={(durationMs) => onChange({ ...mapping, durationMs })}
             />
           ) : null}
-        </>
+        </div>
       ) : null}
 
       {mapping.type === "mouse-look" ? (
-        <>
+        <div className="inspector-card">
+          <span className="inspector-card-title">Camera Look & Sensitivity</span>
           <KeyCapture
             label="Toggle trigger"
             code={
@@ -384,20 +364,24 @@ export function MappingInspector({
             }
           />
           <div className="field-grid two">
-            <NumberField
+            <SliderNumberField
               label="Sensitivity"
               value={mapping.sensitivity}
               min={0.0001}
               max={0.02}
+              sliderMax={0.01}
               step={0.0001}
+              precision={4}
               onChange={(sensitivity) => onChange({ ...mapping, sensitivity })}
             />
-            <NumberField
+            <SliderNumberField
               label="Recenter radius"
               value={mapping.radius}
               min={0.02}
               max={0.5}
-              step={0.01}
+              step={0.005}
+              sliderStep={0.01}
+              precision={3}
               onChange={(radius) => onChange({ ...mapping, radius })}
             />
           </div>
@@ -423,16 +407,18 @@ export function MappingInspector({
               <span>Invert Y</span>
             </label>
           </div>
-        </>
+        </div>
       ) : null}
 
-      <button
-        type="button"
-        className="button danger subtle"
-        onClick={() => onDelete(mapping.id)}
-      >
-        Delete mapping
-      </button>
+      <div className="inspector-footer">
+        <button
+          type="button"
+          className="button danger subtle"
+          onClick={() => onDelete(mapping.id)}
+        >
+          Delete mapping
+        </button>
+      </div>
     </div>
   );
 }

@@ -101,3 +101,23 @@ export function connectionPhaseLabel({
       return snapshot.phase === "error" ? "Attention" : "Offline";
   }
 }
+
+export function deviceOptionStatus({
+  serial,
+  activeSerial,
+  isConnected,
+  pendingStage,
+}: {
+  serial: string;
+  activeSerial: string;
+  isConnected: boolean;
+  pendingStage?: PendingConnectionStage;
+}): string | undefined {
+  if (serial === activeSerial) {
+    return undefined;
+  }
+  if (isConnected) return "ADB ready";
+  if (pendingStage === "reconnecting") return "Reconnecting";
+  if (pendingStage) return "Connecting";
+  return "Authorized";
+}

@@ -346,3 +346,63 @@ export function IconOffline({ size = 18, ...props }: IconProps) {
   );
 }
 
+export function IconSearch({ size = 18, ...props }: IconProps) {
+  return (
+    <svg {...defaultProps} width={size} height={size} {...props}>
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
+}
+
+export function IconSmartphone({ size = 18, ...props }: IconProps) {
+  return (
+    <svg {...defaultProps} width={size} height={size} {...props}>
+      <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+      <line x1="12" y1="18" x2="12.01" y2="18" />
+    </svg>
+  );
+}
+
+export function IconStar({ size = 18, ...props }: IconProps) {
+  return (
+    <svg {...defaultProps} width={size} height={size} {...props}>
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
+  );
+}
+
+export function IconOpenDroid({ size = 32, ...props }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 64 64"
+      width={size}
+      height={size}
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <rect width="64" height="64" rx="16" fill="#10130f" />
+      <path
+        d="M19 23h26v25a5 5 0 0 1-5 5H24a5 5 0 0 1-5-5V23Z"
+        fill="#c8f85a"
+      />
+      <path
+        d="m23 20-4-7m22 7 4-7"
+        stroke="#c8f85a"
+        strokeWidth="4"
+        strokeLinecap="round"
+      />
+      <circle cx="27" cy="31" r="2.5" fill="#10130f" />
+      <circle cx="37" cy="31" r="2.5" fill="#10130f" />
+      <path
+        d="M26 42h12"
+        stroke="#10130f"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+
