@@ -2521,6 +2521,7 @@ a:hover {
   display: flex;
   align-items: center;
   margin-bottom: 8px;
+  width: 100%;
 }
 
 .profile-search-icon {
@@ -2528,12 +2529,31 @@ a:hover {
   left: 10px;
   color: var(--muted);
   pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .profile-search-input {
-  width: 100%;
-  padding-left: 32px !important;
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px 8px 32px;
   font-size: 13px;
+  color: var(--ink);
+  transition: border-color 150ms ease;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.profile-search-input::placeholder {
+  color: var(--muted);
+}
+
+.profile-search-input:focus {
+  border-color: var(--accent);
+  outline: none;
 }
 
 .profile-cards-list {
