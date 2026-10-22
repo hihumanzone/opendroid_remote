@@ -21,6 +21,7 @@ import {
 } from "./icons/UiIcons";
 
 export interface ProfilePanelProps {
+  hasDevice?: boolean;
   profiles: readonly GameProfile[];
   active?: GameProfile;
   defaultProfileId?: string;
@@ -45,6 +46,7 @@ export interface ProfilePanelProps {
 }
 
 export const ProfilePanel = memo(function ProfilePanel({
+  hasDevice,
   profiles,
   active,
   defaultProfileId,
@@ -71,6 +73,10 @@ export const ProfilePanel = memo(function ProfilePanel({
   const [scanningApps, setScanningApps] = useState(false);
   const [installedApps, setInstalledApps] = useState<string[] | null>(null);
   const [appPickerFilter, setAppPickerFilter] = useState("");
+
+  const isDeviceConnected =
+    hasDevice ??
+    (autoProfileState.status !== "idle" && autoProfileState.status !== "paused-edit");
 
   const filteredProfiles = useMemo(() => {
     if (!searchQuery.trim()) return profiles;
@@ -199,7 +205,7 @@ export const ProfilePanel = memo(function ProfilePanel({
 
           <div className="auto-switch-status-row">
             <span style={{ color: "var(--muted)" }}>Active on phone:</span>
-            {autoProfileState.activePackage ? (
+            {isDeviceConnected && autoProfileState.activePackage ? (
               <span className="detected-app-badge" title={autoProfileState.activePackage}>
                 <IconSmartphone size={12} />
                 {autoProfileState.activePackage}
@@ -207,7 +213,7 @@ export const ProfilePanel = memo(function ProfilePanel({
               </span>
             ) : (
               <span style={{ color: "var(--muted)", fontStyle: "italic" }}>
-                {autoProfileState.status === "idle"
+                {!isDeviceConnected || autoProfileState.status === "idle"
                   ? "Device not connected"
                   : "Checking device..."}
               </span>

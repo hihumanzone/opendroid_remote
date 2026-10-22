@@ -2071,6 +2071,7 @@ export default function App() {
             ) : null}
             {panel === "profiles" ? (
               <ProfilePanel
+                hasDevice={Boolean(activeSerial && transport.get(activeSerial))}
                 profiles={profiles}
                 active={profile}
                 defaultProfileId={profilePreferences.defaultProfileId}
